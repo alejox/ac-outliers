@@ -20,7 +20,19 @@ const needsLogin = computed(() => loadError.value?.statusCode === 401)
 const channelById = computed(() => new Map(channels.value.map((c) => [c.id, c])))
 
 const mode = ref<Mode>('trends')
+const MODE_TITLES: Record<Mode, string> = {
+  trends: 'Tendencias',
+  following: 'Tus canales',
+  discover: 'Descubrir',
+  channels: 'Comparar canales',
+}
 const view = ref<'list' | 'grid'>('list')
+// En celular las secciones se desplazan en horizontal: la activa siempre queda a la vista.
+watch(mode, () =>
+  nextTick(() =>
+    document.querySelector('.modes [aria-pressed="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }),
+  ),
+)
 const messageOf = (err: any) => err?.data?.message ?? 'Algo falló. Vuelve a intentar.'
 
 const subscribersOf = (list: Channel[]) => new Map(list.map((c) => [c.id, c.subscriberCount]))
@@ -271,112 +283,148 @@ async function logIn() {
 </script>
 
 <template>
-  <div class="page">
-    <header class="masthead">
-      <h1>Outliers</h1>
-      <p class="lede">Videos que rindieron muy por encima de lo normal en su propio canal.</p>
+  <div class="page" :class="{ 'page-login': needsLogin }">
+    <header v-if="!needsLogin" class="nav">
+      <a class="brand" href="/">
+        <svg class="brand-mark" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+          <rect width="20" height="20" rx="6" fill="#ff6363" />
+          <path d="M4 10h12M7.5 7v6" stroke="#040506" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="14" cy="10" r="2.75" fill="#040506" />
+        </svg>
+        <span>AC Outliers</span>
+      </a>
+
+      <nav class="modes" aria-label="Sección">
+        <button type="button" :aria-pressed="mode === 'trends'" @click="mode = 'trends'">Tendencias</button>
+        <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
+        <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
+        <button type="button" :aria-pressed="mode === 'channels'" @click="mode = 'channels'">Comparar canales</button>
+      </nav>
+
+      <div class="nav-action">
+        <button
+          v-if="!isDemo"
+          class="button button-primary"
+          type="button"
+          :disabled="busy !== null || (channels.length === 0 && topics.length === 0)"
+          @click="updateAll"
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path
+              d="M13.5 8a5.5 5.5 0 0 1-9.9 3.3M2.5 8a5.5 5.5 0 0 1 9.9-3.3M12.5 1.8v3h-3M3.5 14.2v-3h3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="nav-action-label" :class="{ 'is-busy': busy === 'sync' }">{{ busy === 'sync' ? progress : 'Actualizar datos' }}</span>
+        </button>
+        <span v-else class="tag">Demo</span>
+      </div>
     </header>
 
-    <p v-if="isDemo" class="banner">
-      Estás viendo datos de ejemplo con canales inventados. Agrega tus claves en el archivo
-      <code>.env</code> para seguir canales reales.
-    </p>
-    <p v-if="isOpen" class="banner">
-      Esta app no tiene contraseña. Si está publicada en internet, define <code>NUXT_APP_PASSWORD</code>
-      para que nadie más gaste tu cuota de YouTube.
-    </p>
-
     <form v-if="needsLogin" class="login" @submit.prevent="logIn">
+      <p class="login-brand">
+        <svg class="brand-mark" viewBox="0 0 20 20" width="32" height="32" aria-hidden="true">
+          <rect width="20" height="20" rx="6" fill="#ff6363" />
+          <path d="M4 10h12M7.5 7v6" stroke="#040506" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="14" cy="10" r="2.75" fill="#040506" />
+        </svg>
+        <span>AC Outliers</span>
+      </p>
+      <p class="login-lede">Videos que rindieron muy por encima de lo normal en su propio canal.</p>
       <label for="password">Contraseña</label>
-      <div class="add">
-        <input id="password" v-model="password" type="password" autocomplete="current-password" :disabled="loggingIn" />
-        <button class="button" type="submit" :disabled="loggingIn || !password">
-          {{ loggingIn ? 'Entrando' : 'Entrar' }}
-        </button>
-      </div>
+      <input id="password" v-model="password" type="password" autocomplete="current-password" :disabled="loggingIn" />
+      <button class="button button-primary" type="submit" :disabled="loggingIn">
+        {{ loggingIn ? 'Entrando' : 'Entrar' }}
+      </button>
       <p v-if="loginError" class="notice notice-error" role="alert">{{ loginError }}</p>
     </form>
 
-    <p v-if="loadError && !needsLogin" class="banner banner-error" role="alert">
-      {{ loadError.data?.message ?? 'No se pudieron cargar los datos. Revisa la terminal del servidor.' }}
-    </p>
+    <div v-if="!needsLogin" class="masthead">
+      <h1>{{ MODE_TITLES[mode] }}</h1>
+      <p class="lede">Videos que rindieron muy por encima de lo normal en su propio canal.</p>
+    </div>
+
+    <div v-if="!needsLogin && (isDemo || isOpen || loadError)" class="banners">
+      <p v-if="isDemo" class="banner">
+        Estás viendo datos de ejemplo con canales inventados. Agrega tus claves en el archivo
+        <code>.env</code> para seguir canales reales.
+      </p>
+      <p v-if="isOpen" class="banner banner-warn">
+        Esta app no tiene contraseña. Si está publicada en internet, define <code>NUXT_APP_PASSWORD</code>
+        para que nadie más gaste tu cuota de YouTube.
+      </p>
+      <p v-if="loadError" class="banner banner-error" role="alert">
+        {{ loadError.data?.message ?? 'No se pudieron cargar los datos. Revisa la terminal del servidor.' }}
+      </p>
+    </div>
 
     <section v-if="!needsLogin" class="channels" aria-labelledby="channels-title">
       <div class="section-head">
         <h2 id="channels-title">Canales que sigues</h2>
-        <button
-          v-if="(channels.length > 0 || topics.length > 0) && !isDemo"
-          class="button button-quiet"
-          type="button"
-          :disabled="busy !== null"
-          @click="updateAll"
-        >
-          {{ busy === 'sync' ? progress : 'Actualizar datos' }}
-        </button>
+        <p class="section-sub">
+          {{ channels.length > 0 ? 'Toca un canal para ver solo sus videos.' : 'Agrega los canales de tu nicho, o los tuyos.' }}
+        </p>
       </div>
 
-      <ul v-if="channels.length > 0" class="chips">
-        <li v-for="c in channels" :key="c.id" class="chip" :class="{ 'chip-on': onlyChannel === c.id }">
-          <button
-            class="chip-main"
-            type="button"
-            :aria-pressed="onlyChannel === c.id"
-            :title="onlyChannel === c.id ? 'Ver todos los canales' : `Ver solo ${c.title}`"
-            @click="onlyChannel === c.id ? (onlyChannel = null) : showChannel(c.id)"
-          >
-            <img v-if="c.thumbnailUrl" class="avatar" :src="c.thumbnailUrl" alt="" loading="lazy" />
-            <span v-else class="avatar avatar-blank" :style="{ '--hue': hueOf(c.id) }" aria-hidden="true">
-              {{ c.title.charAt(0) }}
-            </span>
-            <span class="chip-name">{{ c.title }}</span>
-            <span v-if="c.subscriberCount" class="chip-subs">{{ compact.format(c.subscriberCount) }}</span>
-          </button>
-          <button
-            v-if="!isDemo"
-            class="chip-remove"
-            type="button"
-            :aria-label="`Quitar ${c.title}`"
-            :disabled="busy !== null"
-            @click="removeChannel(c)"
-          >
-            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-              <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            </svg>
-          </button>
-        </li>
-      </ul>
+      <div class="channel-row">
+        <ul v-if="channels.length > 0" class="chips">
+          <li v-for="c in channels" :key="c.id" class="chip" :class="{ 'chip-on': onlyChannel === c.id }">
+            <button
+              class="chip-main"
+              type="button"
+              :aria-pressed="onlyChannel === c.id"
+              :title="onlyChannel === c.id ? 'Ver todos los canales' : `Ver solo ${c.title}`"
+              @click="onlyChannel === c.id ? (onlyChannel = null) : showChannel(c.id)"
+            >
+              <img v-if="c.thumbnailUrl" class="avatar" :src="c.thumbnailUrl" alt="" loading="lazy" />
+              <span v-else class="avatar avatar-blank" aria-hidden="true">{{ c.title.charAt(0) }}</span>
+              <span class="chip-name">{{ c.title }}</span>
+              <span v-if="c.subscriberCount" class="chip-subs">{{ compact.format(c.subscriberCount) }}</span>
+            </button>
+            <button
+              v-if="!isDemo"
+              class="chip-remove"
+              type="button"
+              :aria-label="`Quitar ${c.title}`"
+              :disabled="busy !== null"
+              @click="removeChannel(c)"
+            >
+              <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              </svg>
+            </button>
+          </li>
+        </ul>
 
-      <form v-if="!isDemo" class="add" @submit.prevent="addChannel">
-        <label class="sr-only" for="new-channel">Canal de YouTube</label>
-        <input
-          id="new-channel"
-          v-model="newChannel"
-          type="text"
-          placeholder="@usuario o enlace del canal"
-          autocomplete="off"
-          autocapitalize="off"
-          spellcheck="false"
-          :disabled="busy !== null"
-        />
-        <button class="button" type="submit" :disabled="busy !== null || !newChannel.trim()">
-          {{ busy === 'add' ? 'Agregando' : 'Agregar canal' }}
-        </button>
-      </form>
+        <form v-if="!isDemo" class="add" @submit.prevent="addChannel">
+          <label class="sr-only" for="new-channel">Canal de YouTube</label>
+          <input
+            id="new-channel"
+            v-model="newChannel"
+            type="text"
+            placeholder="@usuario o enlace del canal"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            :disabled="busy !== null"
+          />
+          <button class="button" type="submit" :disabled="busy !== null">
+            {{ busy === 'add' ? 'Agregando' : 'Agregar canal' }}
+          </button>
+        </form>
+      </div>
 
       <p v-if="notice" class="notice" :class="`notice-${notice.kind}`" :role="notice.kind === 'error' ? 'alert' : 'status'">
         {{ notice.text }}
       </p>
     </section>
 
-    <section v-if="!needsLogin" class="ranking" aria-labelledby="ranking-title">
+    <section v-if="!needsLogin" id="seccion" class="ranking" aria-labelledby="ranking-title">
       <h2 id="ranking-title" class="sr-only">Videos y canales</h2>
-
-      <div class="modes" role="group" aria-label="Sección">
-        <button type="button" :aria-pressed="mode === 'trends'" @click="mode = 'trends'">Tendencias</button>
-        <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
-        <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
-        <button type="button" :aria-pressed="mode === 'channels'" @click="mode = 'channels'">Comparar canales</button>
-      </div>
 
       <!-- Tendencias: temas que sigues en todo YouTube -->
       <template v-if="mode === 'trends'">
@@ -393,7 +441,7 @@ async function logIn() {
                 <option v-for="c in CATEGORY_OPTIONS" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
             </label>
-            <button class="button" type="submit" :disabled="topicBusy || !canAddTopic">
+            <button class="button" type="submit" :disabled="topicBusy">
               {{ topicBusy ? 'Buscando' : 'Seguir tema' }}
             </button>
           </form>
@@ -416,8 +464,8 @@ async function logIn() {
                 <span class="chip-subs">{{ t.count }}</span>
               </button>
               <button class="chip-remove" type="button" :aria-label="`Dejar de seguir ${topicLabel(t)}`" :disabled="topicBusy" @click="removeTopic(t)">
-                <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-                  <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                  <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                 </svg>
               </button>
             </li>
@@ -528,7 +576,7 @@ async function logIn() {
               <option value="viewCount">Los más vistos</option>
             </select>
           </label>
-          <button class="button" type="submit" :disabled="searching || !canSearch">
+          <button class="button" type="submit" :disabled="searching">
             {{ searching ? 'Buscando' : 'Buscar en YouTube' }}
           </button>
         </form>
