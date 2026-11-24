@@ -33,6 +33,21 @@ watch(mode, () =>
     document.querySelector('.modes [aria-pressed="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }),
   ),
 )
+watch([mode, isDemo], () => nextTick(measureModes), { flush: 'post' })
+// Si las secciones no caben, el borde por donde sigue la fila se desvanece.
+const modesEl = ref<HTMLElement | null>(null)
+const modesMore = reactive({ left: false, right: false })
+function measureModes() {
+  const el = modesEl.value
+  if (!el) return
+  modesMore.left = el.scrollLeft > 4
+  modesMore.right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+}
+onMounted(() => {
+  measureModes()
+  window.addEventListener('resize', measureModes)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', measureModes))
 const messageOf = (err: any) => err?.data?.message ?? 'Algo falló. Vuelve a intentar.'
 
 const subscribersOf = (list: Channel[]) => new Map(list.map((c) => [c.id, c.subscriberCount]))
@@ -40,6 +55,9 @@ const categoriesOf = (list: ScoredVideo[]) =>
   [...new Set(list.map((v) => v.categoryId).filter((id): id is string => id !== null))]
     .map((id) => ({ id, name: categoryName(id) }))
     .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+/** Los filtros se apartan de los de partida: el estado vacío ofrece volver a ellos. */
+const differs = (a: object, b: object) => JSON.stringify(a) !== JSON.stringify(b)
+const FOUND_DEFAULTS = { periodDays: 0, minScore: 0 }
 const countOf = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`)
 
 // Ranking de los canales que sigues
@@ -288,13 +306,13 @@ async function logIn() {
       <a class="brand" href="/">
         <svg class="brand-mark" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
           <rect width="20" height="20" rx="6" fill="#ff6363" />
-          <path d="M4 10h12M7.5 7v6" stroke="#040506" stroke-width="1.5" stroke-linecap="round" />
-          <circle cx="14" cy="10" r="2.75" fill="#040506" />
+          <path d="M5 6v8M5 10h7" stroke="#040506" stroke-width="2" stroke-linecap="round" />
+          <circle cx="13" cy="10" r="3" fill="#040506" />
         </svg>
         <span>AC Outliers</span>
       </a>
 
-      <nav class="modes" aria-label="Sección">
+      <nav ref="modesEl" class="modes" :class="{ 'more-right': modesMore.right, 'more-left': modesMore.left }" aria-label="Sección" @scroll.passive="measureModes">
         <button type="button" :aria-pressed="mode === 'trends'" @click="mode = 'trends'">Tendencias</button>
         <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
         <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
@@ -329,8 +347,8 @@ async function logIn() {
       <p class="login-brand">
         <svg class="brand-mark" viewBox="0 0 20 20" width="32" height="32" aria-hidden="true">
           <rect width="20" height="20" rx="6" fill="#ff6363" />
-          <path d="M4 10h12M7.5 7v6" stroke="#040506" stroke-width="1.5" stroke-linecap="round" />
-          <circle cx="14" cy="10" r="2.75" fill="#040506" />
+          <path d="M5 6v8M5 10h7" stroke="#040506" stroke-width="2" stroke-linecap="round" />
+          <circle cx="13" cy="10" r="3" fill="#040506" />
         </svg>
         <span>AC Outliers</span>
       </p>
@@ -350,12 +368,26 @@ async function logIn() {
 
     <div v-if="!needsLogin && (isDemo || isOpen || loadError)" class="banners">
       <p v-if="isDemo" class="banner">
-        Estás viendo datos de ejemplo con canales inventados. Agrega tus claves en el archivo
-        <code>.env</code> para seguir canales reales.
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path d="M8 7.5v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="8" cy="5" r="1" fill="currentColor" />
+        </svg>
+        <span>
+          Estás viendo datos de ejemplo con canales inventados. Agrega tus claves en el archivo
+          <code>.env</code> para seguir canales reales.
+        </span>
       </p>
       <p v-if="isOpen" class="banner banner-warn">
-        Esta app no tiene contraseña. Si está publicada en internet, define <code>NUXT_APP_PASSWORD</code>
-        para que nadie más gaste tu cuota de YouTube.
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+          <path d="M8 2.25 14.25 13H1.75Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          <path d="M8 6.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="8" cy="11.25" r="0.9" fill="currentColor" />
+        </svg>
+        <span>
+          Esta app no tiene contraseña. Si está publicada en internet, define <code>NUXT_APP_PASSWORD</code>
+          para que nadie más gaste tu cuota de YouTube.
+        </span>
       </p>
       <p v-if="loadError" class="banner banner-error" role="alert">
         {{ loadError.data?.message ?? 'No se pudieron cargar los datos. Revisa la terminal del servidor.' }}
@@ -364,14 +396,33 @@ async function logIn() {
 
     <section v-if="!needsLogin" class="channels" aria-labelledby="channels-title">
       <div class="section-head">
-        <h2 id="channels-title">Canales que sigues</h2>
-        <p class="section-sub">
-          {{ channels.length > 0 ? 'Toca un canal para ver solo sus videos.' : 'Agrega los canales de tu nicho, o los tuyos.' }}
-        </p>
+        <div>
+          <h2 id="channels-title">Canales que sigues</h2>
+          <p class="section-sub">
+            {{ channels.length > 0 ? 'Toca un canal para ver solo sus videos.' : 'Agrega los canales de tu nicho, o los tuyos.' }}
+          </p>
+        </div>
+
+      <form v-if="!isDemo" class="add" @submit.prevent="addChannel">
+        <label class="sr-only" for="new-channel">Canal de YouTube</label>
+        <input
+          id="new-channel"
+          v-model="newChannel"
+          type="text"
+          placeholder="@usuario o enlace del canal"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          :disabled="busy !== null"
+        />
+        <button class="button" type="submit" :disabled="busy !== null">
+          {{ busy === 'add' ? 'Agregando' : 'Agregar canal' }}
+        </button>
+      </form>
       </div>
 
-      <div class="channel-row">
-        <ul v-if="channels.length > 0" class="chips">
+      <div v-if="channels.length > 0" class="channel-row">
+        <ul class="chips">
           <li v-for="c in channels" :key="c.id" class="chip" :class="{ 'chip-on': onlyChannel === c.id }">
             <button
               class="chip-main"
@@ -380,7 +431,12 @@ async function logIn() {
               :title="onlyChannel === c.id ? 'Ver todos los canales' : `Ver solo ${c.title}`"
               @click="onlyChannel === c.id ? (onlyChannel = null) : showChannel(c.id)"
             >
-              <img v-if="c.thumbnailUrl" class="avatar" :src="c.thumbnailUrl" alt="" loading="lazy" />
+              <span v-if="onlyChannel === c.id" class="avatar avatar-check" aria-hidden="true">
+                <svg viewBox="0 0 12 12" width="12" height="12">
+                  <path d="M2.5 6.25 5 8.75l4.5-5.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+              <img v-else-if="c.thumbnailUrl" class="avatar" :src="c.thumbnailUrl" alt="" loading="lazy" />
               <span v-else class="avatar avatar-blank" aria-hidden="true">{{ c.title.charAt(0) }}</span>
               <span class="chip-name">{{ c.title }}</span>
               <span v-if="c.subscriberCount" class="chip-subs">{{ compact.format(c.subscriberCount) }}</span>
@@ -400,22 +456,6 @@ async function logIn() {
           </li>
         </ul>
 
-        <form v-if="!isDemo" class="add" @submit.prevent="addChannel">
-          <label class="sr-only" for="new-channel">Canal de YouTube</label>
-          <input
-            id="new-channel"
-            v-model="newChannel"
-            type="text"
-            placeholder="@usuario o enlace del canal"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            :disabled="busy !== null"
-          />
-          <button class="button" type="submit" :disabled="busy !== null">
-            {{ busy === 'add' ? 'Agregando' : 'Agregar canal' }}
-          </button>
-        </form>
       </div>
 
       <p v-if="notice" class="notice" :class="`notice-${notice.kind}`" :role="notice.kind === 'error' ? 'alert' : 'status'">
@@ -473,7 +513,7 @@ async function logIn() {
         </template>
 
         <template v-if="trendVideos.length > 0">
-          <FilterBar v-model="trendFilters" :categories="trendCategories" />
+          <FilterBar v-model="trendFilters" v-model:view="view" :categories="trendCategories" />
           <VideoResults
             v-if="trendResults.length > 0"
             v-model:view="view"
@@ -488,16 +528,25 @@ async function logIn() {
           <div v-else class="empty">
             <p class="empty-title">Ningún video cumple estos filtros</p>
             <p>Quita algún filtro o elige otro tema.</p>
+            <button
+              v-if="differs(trendFilters, defaultFilters(FOUND_DEFAULTS))"
+              class="button"
+              type="button"
+              @click="trendFilters = defaultFilters(FOUND_DEFAULTS)"
+            >
+              Restablecer filtros
+            </button>
           </div>
         </template>
 
         <template v-else-if="rising.length > 0">
-          <h3 class="subhead">En alza en tus canales</h3>
           <VideoResults
             v-model:view="view"
             :videos="rising"
             :channels="channelById"
+            heading="En alza en tus canales"
             summary="Lo que más rápido suma vistas entre lo publicado en los últimos 30 días"
+            own-switch
           />
         </template>
 
@@ -509,14 +558,7 @@ async function logIn() {
 
       <!-- Ranking de los canales que sigues -->
       <template v-else-if="mode === 'following'">
-        <FilterBar v-model="filters" :categories="categories" show-format show-period />
-
-        <p v-if="words.length > 0" class="words">
-          <span>Se repite en los títulos</span>
-          <button v-for="w in words" :key="w.word" type="button" class="word" @click="filters.title = w.word">
-            {{ w.word }} <span class="dim">{{ w.count }}</span>
-          </button>
-        </p>
+        <FilterBar v-model="filters" v-model:view="view" :categories="categories" show-format show-period />
 
         <VideoResults
           v-if="results.length > 0"
@@ -524,7 +566,16 @@ async function logIn() {
           :videos="results"
           :channels="channelById"
           :summary="summary"
-        />
+        >
+          <template v-if="words.length > 0" #aside>
+            <p class="words">
+              <span>Se repite en los títulos</span>
+              <button v-for="w in words" :key="w.word" type="button" class="word" @click="filters.title = w.word">
+                {{ w.word }} <span class="dim">{{ w.count }}</span>
+              </button>
+            </p>
+          </template>
+        </VideoResults>
 
         <div v-else-if="!loadError" class="empty">
           <template v-if="channels.length === 0">
@@ -534,6 +585,9 @@ async function logIn() {
           <template v-else>
             <p class="empty-title">Ningún video cumple estos filtros</p>
             <p>Baja el score mínimo, amplía el periodo o quita algún filtro.</p>
+            <button v-if="differs(filters, defaultFilters())" class="button" type="button" @click="filters = defaultFilters()">
+              Restablecer filtros
+            </button>
           </template>
         </div>
       </template>
@@ -588,7 +642,7 @@ async function logIn() {
 
         <template v-if="discovered">
           <template v-if="discovered.videos.length > 0">
-            <FilterBar v-model="foundFilters" :categories="foundCategories" />
+            <FilterBar v-model="foundFilters" v-model:view="view" :categories="foundCategories" />
 
             <VideoResults
               v-if="foundResults.length > 0"
@@ -605,6 +659,14 @@ async function logIn() {
             <div v-else class="empty">
               <p class="empty-title">Ningún resultado cumple estos filtros</p>
               <p>La búsqueda trajo {{ countOf(discovered.videos.length, 'video', 'videos') }}. Quita algún filtro para verlos.</p>
+              <button
+                v-if="differs(foundFilters, defaultFilters(FOUND_DEFAULTS))"
+                class="button"
+                type="button"
+                @click="foundFilters = defaultFilters(FOUND_DEFAULTS)"
+              >
+                Restablecer filtros
+              </button>
             </div>
           </template>
 

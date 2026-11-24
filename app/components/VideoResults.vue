@@ -7,6 +7,10 @@ const props = defineProps<{
   videos: ScoredVideo[]
   channels: Map<string, Channel>
   summary: string
+  /** Título del bloque cuando no lo antecede una barra de filtros. */
+  heading?: string
+  /** Sin barra de filtros encima, el cambio de vista va en este encabezado. */
+  ownSwitch?: boolean
 }>()
 
 /** 'list' muestra todas las cifras; 'grid' deja solo las miniaturas para estudiar el empaque. */
@@ -22,14 +26,15 @@ const visible = computed(() => props.videos.slice(0, shown.value))
 
 <template>
   <div class="results-head">
-    <p class="summary" aria-live="polite">{{ summary }}</p>
-    <div class="segmented segmented-small" role="group" aria-label="Vista">
-      <button type="button" :aria-pressed="view === 'list'" @click="view = 'list'">Lista</button>
-      <button type="button" :aria-pressed="view === 'grid'" @click="view = 'grid'">Miniaturas</button>
+    <div class="results-title">
+      <h3 v-if="heading" class="subhead">{{ heading }}</h3>
+      <p class="summary" aria-live="polite">{{ summary }}</p>
     </div>
+    <slot name="aside" />
+    <ViewSwitch v-if="ownSwitch" v-model="view" />
   </div>
 
-  <ol v-if="view === 'list'" class="rows">
+  <ol v-if="view === 'list'" class="videos">
     <VideoRow v-for="v in visible" :key="v.id" :video="v" :channel="channels.get(v.channelId)">
       <template v-if="$slots.action" #default>
         <slot name="action" :video="v" />
@@ -37,26 +42,36 @@ const visible = computed(() => props.videos.slice(0, shown.value))
     </VideoRow>
   </ol>
 
-  <ol v-else class="grid">
-    <li v-for="v in visible" :key="v.id" class="card" :class="`tier-${scoreTier(v.score)}`">
+  <ol v-else class="tiles">
+    <li v-for="v in visible" :key="v.id" class="tile" :class="`tier-${scoreTier(v.score)}`">
       <a class="thumb" :href="videoUrl(v)" target="_blank" rel="noopener">
         <img v-if="v.thumbnailUrl" :src="v.thumbnailUrl" alt="" loading="lazy" />
         <span v-else class="thumb-blank" :style="{ '--hue': hueOf(v.channelId) }">
           {{ channels.get(v.channelId)?.title.charAt(0) }}
         </span>
-        <span v-if="v.score !== null" class="badge">{{ formatScore(v.score) }}</span>
-        <span class="duration">{{ v.isShort ? 'Short' : formatDuration(v.durationSeconds) }}</span>
+        <span v-if="v.isShort" class="duration duration-short">Short</span>
+        <span v-else class="duration">{{ formatDuration(v.durationSeconds) }}</span>
         <span class="sr-only">{{ v.title }}</span>
       </a>
-      <p class="card-title" aria-hidden="true">{{ v.title }}</p>
-      <p class="card-meta">
-        <span>{{ channels.get(v.channelId)?.title }}</span>
-        <span>{{ compact.format(v.views) }} vistas</span>
-      </p>
+      <div class="tile-body">
+        <div class="tile-score">
+          <p class="tile-value">{{ v.score !== null ? formatScore(v.score) : '–' }}</p>
+          <div class="strip" aria-hidden="true">
+            <span v-if="v.score !== null" class="strip-fill" :style="stripFill(v.score)" />
+            <span class="strip-normal" :style="{ left: `${NORMAL_AT}%` }" />
+            <span v-if="v.score !== null" class="strip-dot" :style="{ left: `${stripPosition(v.score)}%` }" />
+          </div>
+        </div>
+        <p class="tile-title" aria-hidden="true">{{ v.title }}</p>
+        <p class="tile-meta">
+          <span>{{ channels.get(v.channelId)?.title }}</span>
+          <span>{{ compact.format(v.views) }} vistas</span>
+        </p>
+      </div>
     </li>
   </ol>
 
-  <button v-if="videos.length > shown" class="button button-quiet more" type="button" @click="shown += PAGE_SIZE">
+  <button v-if="videos.length > shown" class="button more" type="button" @click="shown += PAGE_SIZE">
     Ver {{ Math.min(PAGE_SIZE, videos.length - shown) }} más
   </button>
 </template>

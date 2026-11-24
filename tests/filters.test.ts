@@ -113,6 +113,15 @@ describe('topWords', () => {
     ])
   })
 
+  it('conserva las tildes de los títulos y agrupa las variantes', () => {
+    const words = topWords(['Guía de OBS', 'OBS: guía completa', 'La guia de 30 días', 'Probé esto durante días'], 5, 2)
+    expect(words).toEqual([
+      { word: 'guía', count: 3 },
+      { word: 'días', count: 2 },
+      { word: 'obs', count: 2 },
+    ])
+  })
+
   it('no devuelve nada si ninguna palabra se repite lo suficiente', () => {
     expect(topWords(['uno distinto', 'otro diferente'])).toEqual([])
   })

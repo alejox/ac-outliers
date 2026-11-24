@@ -151,9 +151,17 @@ button:disabled {
   padding: 0 12px;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
-  background: rgb(7 8 10 / 0.8);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  background: rgb(7 8 10 / 0.88);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+/* Nada del contenido asoma por la franja que queda sobre la barra */
+.nav::before {
+  content: '';
+  position: absolute;
+  inset: -13px -1px calc(100% + 1px);
+  background: var(--void);
 }
 
 .brand {
@@ -268,12 +276,18 @@ button:disabled {
 }
 
 .banner {
+  display: flex;
+  gap: 8px;
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ash);
   font-size: 12px;
   line-height: 16px;
+}
+
+.banner svg {
+  flex: none;
 }
 
 .banner code {
@@ -285,21 +299,9 @@ button:disabled {
   font-size: 12px;
 }
 
+/* La advertencia usa la misma franja: la distinguen el icono y el texto en blanco */
 .banner-warn {
-  border-color: var(--border);
-  background: var(--obsidian);
   color: var(--white);
-}
-
-.banner-warn::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 8px;
-  border-radius: 50%;
-  background: var(--white);
-  vertical-align: 1px;
 }
 
 .banner-error {
@@ -376,10 +378,15 @@ button:disabled {
   line-height: 20px;
 }
 
-.channel-row {
+.section-head {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.channel-row {
   margin-top: 12px;
 }
 
@@ -387,10 +394,6 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.channel-row .chips {
-  display: contents;
 }
 
 .chip {
@@ -410,10 +413,15 @@ button:disabled {
   background: var(--obsidian);
 }
 
+/* Elegido: relleno, borde claro y una marca; los demás se apagan */
 .chip-on > button,
 .chip-on:hover > button {
   border-color: rgb(255 255 255 / 0.25);
   background: var(--graphite);
+}
+
+.chips:has(.chip-on) .chip:not(.chip-on) .chip-name {
+  color: var(--ash);
 }
 
 .chip-main {
@@ -451,7 +459,7 @@ button:disabled {
 }
 
 .chip-on .chip-subs {
-  color: var(--ash);
+  color: var(--white);
 }
 
 .avatar {
@@ -473,8 +481,11 @@ button:disabled {
   line-height: 1;
 }
 
-.chip-on .avatar-blank {
-  background: var(--slate);
+.avatar-check {
+  display: grid;
+  place-items: center;
+  background: var(--mist);
+  color: var(--void);
 }
 
 .chip-remove {
@@ -493,22 +504,8 @@ button:disabled {
 .add {
   display: flex;
   flex: 0 1 352px;
+  gap: 8px;
   min-width: 0;
-}
-
-.chips + .add {
-  margin-left: auto;
-}
-
-/* Campo y botón pegados: un solo formulario compacto */
-.add input {
-  border-right: 0;
-  border-radius: 8px 0 0 8px;
-}
-
-.add .button {
-  border-color: var(--line-strong);
-  border-radius: 0 8px 8px 0;
 }
 
 /* Inputs y selects */
@@ -537,6 +534,7 @@ button:disabled {
 
 .add input {
   flex: 1;
+  font-size: 13px;
 }
 
 .add input:hover,
@@ -599,7 +597,7 @@ input[type='search']::-webkit-search-cancel-button {
 
 .button:disabled {
   background: transparent;
-  color: var(--ash);
+  color: var(--smoke);
 }
 
 .button-primary {
@@ -612,9 +610,11 @@ input[type='search']::-webkit-search-cancel-button {
   background: var(--white);
 }
 
+/* Deshabilitado no es un primario roto: solo borde y texto gris */
 .button-primary:disabled {
-  background: var(--ash);
-  color: var(--void);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--smoke);
 }
 
 .button-small {
@@ -640,11 +640,158 @@ input[type='search']::-webkit-search-cancel-button {
   scroll-margin-top: 80px;
 }
 
-.filters {
+/* Barra de herramientas: vista a la izquierda, filtros y buscador a la derecha, pegada a la lista */
+
+.toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 16px;
+  align-items: flex-start;
+  gap: 8px 16px;
+}
+
+.toolbar-filters {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Control con icono o etiqueta dentro: el nombre del campo no ocupa una fila aparte */
+.tool {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: var(--control);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--well);
+  color: var(--ash);
+  transition: border-color 0.15s;
+}
+
+.tool:hover {
+  border-color: var(--border);
+}
+
+.tool:has(:focus-visible) {
+  outline: 2px solid var(--mist);
+  outline-offset: 2px;
+}
+
+.tool-label {
+  padding-left: 12px;
+  color: var(--ash);
+  font-size: 13px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.tool-full {
+  display: none;
+}
+
+/* Un filtro que se aparta de su valor de partida se nota: borde claro y nombre en blanco */
+.tool.is-active {
+  border-color: rgb(255 255 255 / 0.25);
+}
+
+.tool.is-active .tool-label {
+  color: var(--white);
+}
+
+.tool svg {
+  flex: none;
+  margin-left: 8px;
+}
+
+.tool select,
+.tool input {
+  min-width: 0;
+  height: var(--control);
+  margin: -1px;
+  padding: 0 12px 0 8px;
+  border: 0;
+  border-radius: 8px;
+  outline: 0;
+  background-color: transparent;
+  color: var(--white);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.tool select {
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239c9c9d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  appearance: none;
+  field-sizing: content;
+}
+
+/* El buscador se queda con el espacio libre: entre controles solo hay 8px, y 16px tras la vista */
+.tool-search {
+  flex: 1 1 176px;
+}
+
+.tool-search input {
+  flex: 1;
+  width: 100%;
+  text-overflow: ellipsis;
+}
+
+.tool input::placeholder {
+  color: var(--ash);
+  opacity: 1;
+}
+
+.toolbar .segmented button {
+  padding: 0 8px;
+}
+
+/* El cambio de vista es un par de iconos: no se confunde con el filtro de formato */
+.view-switch button {
+  display: grid;
+  place-items: center;
+  width: calc(var(--control) - 4px);
+  padding: 0;
+}
+
+.toolbar .view-switch button {
+  padding: 0;
+}
+
+.more-filters {
+  background: none;
+}
+
+.more-filters[aria-expanded='true'] {
+  background: var(--graphite);
+}
+
+/* La segunda fila arranca en el mismo borde izquierdo que la primera */
+.toolbar-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.button-ghost {
+  border: 0;
+  background: none;
+  color: var(--ash);
+}
+
+.button-ghost:hover:not(:disabled) {
+  color: var(--white);
+}
+
+.clear-filters {
+  margin-left: auto;
 }
 
 .segmented {
@@ -708,13 +855,11 @@ input[type='search']::-webkit-search-cancel-button {
   line-height: 16px;
 }
 
-.row-action {
-  margin-top: 12px;
-}
-
 .followed {
-  color: var(--smoke);
+  color: var(--ash);
   font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 .count {
@@ -732,13 +877,6 @@ input[type='search']::-webkit-search-cancel-button {
   line-height: 1;
 }
 
-.filters-extra {
-  margin-top: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-
 .link-button {
   height: var(--control);
   padding: 0 4px;
@@ -748,6 +886,9 @@ input[type='search']::-webkit-search-cancel-button {
   color: var(--ash);
   font-size: 13px;
   font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 4px;
 }
 
 .link-button:hover {
@@ -762,51 +903,26 @@ input[type='search']::-webkit-search-cancel-button {
   margin-top: 24px;
 }
 
-.chips + .filters,
-.hint + .filters,
-.notice + .filters {
-  margin-top: 24px;
+.chips + .toolbar,
+.hint + .toolbar,
+.notice + .toolbar {
+  margin-top: 32px;
 }
 
-/* Palabras que se repiten */
-
-.words {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  color: var(--smoke);
-  font-size: 12px;
-}
-
-.word {
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 9999px;
-  background: none;
-  color: var(--white);
-  font-size: 12px;
-}
-
-.word:hover {
-  background: var(--graphite);
-}
-
-/* Encabezado de resultados */
+/* Encabezado de resultados: cuántos hay y, al lado, las palabras que se repiten */
 
 .results-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px 24px;
-  margin-top: 24px;
+  gap: 8px 24px;
+  min-height: 28px;
+  margin-top: 16px;
 }
 
-.subhead + .results-head {
-  margin-top: 4px;
+.results-head:first-child {
+  margin-top: 0;
 }
 
 .summary {
@@ -815,59 +931,127 @@ input[type='search']::-webkit-search-cancel-button {
   line-height: 20px;
 }
 
-/* Cuadrícula de miniaturas */
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
-  gap: 24px 16px;
-  margin-top: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+.words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
 }
 
-.card {
-  min-width: 0;
+.words .dim {
+  color: var(--ash);
 }
 
-.badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--graphite);
+.words > span {
+  margin-right: 4px;
+}
+
+.word {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
   color: var(--white);
   font-size: 12px;
-  font-weight: 600;
   line-height: 16px;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.word:hover {
+  border-color: var(--border);
+  background: var(--graphite);
+}
+
+/* Miniaturas: la misma ficha, con la imagen arriba */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.tile {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.tile .thumb {
+  border-radius: 0;
+}
+
+.tile .thumb:focus-visible {
+  outline-offset: -2px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+}
+
+.tile-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 12px;
+}
+
+/* En la ficha pequeña la regla solo marca lo normal: las duplicaciones serían ruido */
+.tile .strip::before {
+  background: linear-gradient(var(--border), var(--border)) 0 50% / 100% 1px no-repeat;
+  border-right: 0;
+}
+
+/* Lo primero que se lee en la ficha: la cifra y su regla */
+.tile-score {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tile-value {
+  color: var(--tone);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
   font-variant-numeric: tabular-nums;
 }
 
-.tier-extreme .badge {
-  background: var(--coral);
-  color: var(--void);
-}
-
-.card-title {
-  margin-top: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
+/* Siempre dos líneas de alto: todas las fichas miden lo mismo */
+.tile-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
-.card-meta {
+.tile-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0 8px;
-  margin-top: 4px;
-  color: var(--smoke);
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--ash);
   font-size: 12px;
   line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tile-meta span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Tabla de canales */
@@ -984,32 +1168,49 @@ input[type='search']::-webkit-search-cancel-button {
   font-weight: 600;
 }
 
-/* Filas de video */
+/* Fichas de video: cabecera con miniatura, título y acción; score con su regla; cifras */
 
-.rows {
-  margin-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-.row {
-  --tone: var(--ash);
+.videos {
   display: grid;
-  grid-template-columns: 176px minmax(0, 1fr) 216px;
-  gap: 24px;
-  align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 12px;
 }
 
-/* Solo 10× o más lleva el acento; el resto es blanco o gris. */
-.row.tier-above,
-.row.tier-high,
+.video {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: border-color 0.15s;
+}
+
+/* --tone: cifra y punto. --bar: línea de la regla, siempre neutra. Solo 10× o más lleva el acento. */
+.video,
+.tile {
+  --tone: var(--ash);
+  --bar: var(--ash);
+}
+
+.tier-above,
+.tier-high {
+  --tone: var(--white);
+  --bar: var(--white);
+}
+
+.tier-extreme {
+  --tone: var(--coral);
+  --bar: var(--white);
+}
+
 .channel-table td.col-best a.tier-above,
 .channel-table td.col-best a.tier-high {
   --tone: var(--white);
 }
 
-.row.tier-extreme,
 .channel-table td.col-best a.tier-extreme {
   --tone: var(--coral);
 }
@@ -1019,13 +1220,43 @@ input[type='search']::-webkit-search-cancel-button {
   --tone: var(--ash);
 }
 
+/* Dos ejes por ficha: el de la miniatura y el del título. Score, regla y cifras se alinean a ellos */
+.video {
+  --thumb: 112px;
+}
+
+.video-head {
+  display: grid;
+  grid-template-columns: var(--thumb) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+/* La acción va arriba a la derecha, con su borde superior en el de la miniatura */
+.video-text:has(.video-action) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+}
+
+.video-text .video-action {
+  grid-column: 2;
+  grid-row: 1;
+  height: 28px;
+}
+
+/* Con acción, la línea de datos pasa por debajo de ella y conserva todo el ancho */
+.video-text:has(.video-action) .byline {
+  grid-column: 1 / -1;
+}
+
 .thumb {
   position: relative;
   display: block;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 8px;
-  background: var(--obsidian);
+  background: var(--ink);
   text-decoration: none;
 }
 
@@ -1046,13 +1277,14 @@ input[type='search']::-webkit-search-cancel-button {
   font-weight: 500;
 }
 
+/* Insignia sobre la miniatura: grafito, texto blanco */
 .duration {
   position: absolute;
   right: 4px;
   bottom: 4px;
   padding: 0 4px;
   border-radius: 6px;
-  background: rgb(4 5 6 / 0.8);
+  background: var(--graphite);
   color: var(--white);
   font-family: var(--mono);
   font-size: 11px;
@@ -1060,79 +1292,112 @@ input[type='search']::-webkit-search-cancel-button {
   font-variant-numeric: tabular-nums;
 }
 
-.info h3 {
-  font-size: 16px;
+/* "Short" es una palabra, no una duración */
+.duration-short {
+  font-family: var(--sans);
   font-weight: 500;
-  line-height: 24px;
+}
+
+.video-text h3 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-}
-
-.info h3 a {
-  text-decoration: none;
-}
-
-.info h3 a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.byline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 12px;
-  margin-top: 4px;
-  color: var(--ash);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  margin-top: 12px;
-}
-
-.stats dt {
-  color: var(--smoke);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.stats dd {
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
-  font-variant-numeric: tabular-nums;
 }
 
-/* Score y regla de desviación */
+.video-text h3 a {
+  text-decoration: none;
+}
+
+.video-text h3 a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Una sola línea: si no cabe, se recorta el nombre del canal, nunca las cifras */
+.byline {
+  display: flex;
+  gap: 0 16px;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.byline span {
+  position: relative;
+  flex: none;
+}
+
+.byline span:first-child {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.byline span + span::before {
+  content: '·';
+  position: absolute;
+  left: -16px;
+  width: 16px;
+  color: var(--smoke);
+  text-align: center;
+}
+
+/* Score y regla de desviación: la cifra y, a su lado, cuánto se aleja de lo normal */
+
+.score {
+  display: grid;
+  grid-template-columns: var(--thumb) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  height: 32px;
+}
+
+.video-action {
+  display: flex;
+  align-items: flex-start;
+}
+
+.video-action .followed {
+  line-height: 20px;
+}
 
 .score-value {
   color: var(--tone);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 600;
-  line-height: 40px;
+  line-height: 32px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
+.score-none {
+  color: var(--smoke);
+}
+
+/* La regla va de 0,25× a 32× en escala logarítmica: una marca corta en cada duplicación */
 .strip {
   position: relative;
-  height: 12px;
-  margin-top: 8px;
+  height: 16px;
 }
 
 .strip::before {
   content: '';
   position: absolute;
   inset: 50% 0 auto;
-  height: 2px;
-  margin-top: -1px;
-  border-radius: 1px;
-  background: var(--slate);
+  height: 4px;
+  margin-top: -2px;
+  background:
+    linear-gradient(var(--border), var(--border)) 0 50% / 100% 1px no-repeat,
+    repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px calc(100% / 7));
+  border-right: 1px solid var(--border);
 }
 
 .strip-fill {
@@ -1140,16 +1405,15 @@ input[type='search']::-webkit-search-cancel-button {
   top: 50%;
   height: 2px;
   margin-top: -1px;
-  background: var(--tone);
+  background: var(--bar);
 }
 
 .strip-normal {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--smoke);
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--ash);
 }
 
 .strip-dot {
@@ -1160,23 +1424,42 @@ input[type='search']::-webkit-search-cancel-button {
   margin: -4px 0 0 -4px;
   border-radius: 50%;
   background: var(--tone);
-}
-
-.strip-caption {
-  margin-top: 4px;
-  color: var(--smoke);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.strip-caption span {
-  display: inline-block;
-  transform: translateX(-50%);
+  outline: 2px solid var(--void);
 }
 
 .score-missing {
-  color: var(--smoke);
+  color: var(--ash);
   font-size: 12px;
+  line-height: 16px;
+}
+
+/* Cifras en línea, en cuatro columnas fijas: quedan alineadas de una ficha a otra */
+/* Cuatro columnas: la primera tan ancha como la miniatura, las otras tres iguales hasta el margen */
+.stats {
+  display: grid;
+  grid-template-columns: var(--thumb) repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.stats > div {
+  min-width: 0;
+}
+
+.stats dt {
+  overflow: hidden;
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats dd {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .more {
@@ -1185,12 +1468,13 @@ input[type='search']::-webkit-search-cancel-button {
 }
 
 .empty {
-  margin-top: 24px;
+  margin-top: 16px;
   padding: 48px 24px;
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--ash);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 20px;
   text-align: center;
 }
 
@@ -1199,12 +1483,26 @@ input[type='search']::-webkit-search-cancel-button {
   margin-inline: auto;
 }
 
+.empty .button {
+  margin-top: 16px;
+}
+
 .empty-title {
   margin-bottom: 4px;
   color: var(--white);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
-  line-height: 24px;
+  line-height: 20px;
+}
+
+@media (max-width: 960px) {
+  .videos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* Teléfono */
@@ -1229,6 +1527,11 @@ input[type='search']::-webkit-search-cancel-button {
     height: auto;
     margin: 0 -8px;
     padding: 6px 8px;
+    background: rgb(7 8 10 / 0.96);
+  }
+
+  .nav::before {
+    inset: -9px -1px calc(100% + 1px);
   }
 
   .brand {
@@ -1275,14 +1578,20 @@ input[type='search']::-webkit-search-cancel-button {
     scroll-padding-inline: 8px;
   }
 
-  /* Si las secciones no caben, el borde derecho se desvanece hasta llegar al final */
-  @supports (animation-timeline: scroll()) {
-    .modes {
-      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
-      mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
-      animation: modes-fade linear both;
-      animation-timeline: scroll(self inline);
-    }
+  /* Si las secciones no caben, el borde por donde sigue la fila se desvanece */
+  .modes.more-right {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent calc(100% - 8px));
+    mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent calc(100% - 8px));
+  }
+
+  .modes.more-left {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent calc(100% - 8px));
+    mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent calc(100% - 8px));
+  }
+
+  .modes.more-left.more-right {
+    -webkit-mask-image: linear-gradient(to right, transparent 8px, #000 56px, #000 calc(100% - 56px), transparent calc(100% - 8px));
+    mask-image: linear-gradient(to right, transparent 8px, #000 56px, #000 calc(100% - 56px), transparent calc(100% - 8px));
   }
 
   .modes::-webkit-scrollbar {
@@ -1320,9 +1629,23 @@ input[type='search']::-webkit-search-cancel-button {
     margin-top: 32px;
   }
 
-  .channel-row {
+  .section-head .add {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .add input,
+  .add .button {
+    flex: 1 1 100%;
+  }
+
+  .chips {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topics {
+    display: flex;
   }
 
   .channel-row .chip {
@@ -1360,14 +1683,6 @@ input[type='search']::-webkit-search-cancel-button {
     flex: 1 1 100%;
   }
 
-  .channel-row .add {
-    grid-column: 1 / -1;
-  }
-
-  .add input {
-    padding: 0 10px;
-  }
-
   .ranking {
     margin-top: 32px;
   }
@@ -1380,28 +1695,128 @@ input[type='search']::-webkit-search-cancel-button {
     font-size: 16px;
   }
 
-  .filters {
-    gap: 12px 8px;
+  .add .button {
+    font-size: 14px;
   }
 
-  .filters .field {
-    flex: 1 1 104px;
-    min-width: 0;
+  /* Dos filas: vista y formato; buscador y "Más filtros". El resto de filtros vive en el panel */
+  .toolbar {
+    gap: 8px;
   }
 
-  .filters .segmented,
-  .filters .field-text,
-  .filters .more-filters {
+  .toolbar-filters {
+    display: contents;
+  }
+
+  .toolbar .segmented button {
+    flex: 1;
+    padding: 0 4px;
+  }
+
+  .toolbar .view-switch {
+    order: 1;
+  }
+
+  .toolbar .view-switch button {
+    flex: none;
+  }
+
+  /* Sin formato, vista, buscador y "Más filtros" caben en una fila */
+  .toolbar:not(:has(.format)) .tool-search {
+    flex-basis: 96px;
+  }
+
+  .toolbar .format {
+    order: 2;
+    flex: 1;
+  }
+
+  .toolbar .tool-search {
+    order: 3;
+    flex: 1 1 50%;
+    max-width: none;
+  }
+
+  .toolbar .more-filters {
+    order: 4;
+  }
+
+  .toolbar .tool-select {
+    order: 5;
     flex: 1 1 100%;
   }
 
-  .filters .segmented button {
-    flex: 1;
-    padding-inline: 8px;
+  .toolbar:not(.is-open) .tool-select {
+    display: none;
   }
 
-  .filters-extra .field {
-    flex-basis: 136px;
+  /* El panel es una lista: nombre a la izquierda en la columna de la miniatura, valor a la derecha */
+  .tool-select {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    height: auto;
+    border: 0;
+    background: none;
+  }
+
+  .tool-select:has(:focus-visible) {
+    outline: 0;
+  }
+
+  .tool-select .tool-label {
+    overflow: hidden;
+    padding: 0;
+    color: var(--ash);
+    font-size: 12px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+  }
+
+  .tool-short {
+    display: none;
+  }
+
+  .tool-full {
+    display: inline;
+  }
+
+  .tool-select select {
+    width: 100%;
+    margin: 0;
+    padding: 0 28px 0 12px;
+    border: 1px solid var(--line-strong);
+    text-overflow: ellipsis;
+    background-color: var(--well);
+    background-position: right 8px center;
+    field-sizing: fixed;
+  }
+
+  .tool-select.is-active select {
+    border-color: rgb(255 255 255 / 0.25);
+  }
+
+  .tool-select select:focus-visible {
+    outline: 2px solid var(--mist);
+    outline-offset: 2px;
+  }
+
+  .tool select,
+  .tool input {
+    font-size: 16px;
+  }
+
+  .toolbar-extra {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .clear-filters {
+    grid-column: 1 / -1;
+    margin: 0;
   }
 
   .discover .field-text {
@@ -1420,55 +1835,65 @@ input[type='search']::-webkit-search-cancel-button {
     background-position: right 8px center;
   }
 
-  .grid {
+  .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px 12px;
+    gap: 8px;
   }
 
-  .row {
-    grid-template-columns: 120px minmax(0, 1fr);
-    gap: 12px;
-    align-items: start;
+  .tile-body {
+    padding: 8px;
   }
 
-  .info h3 {
-    font-size: 14px;
-    line-height: 20px;
+  .tile-meta {
+    flex-direction: column;
+    gap: 0;
   }
 
+  .video {
+    padding: 12px;
+  }
+
+  /* Nombre del canal en su línea (recortado si no cabe); suscriptores y antigüedad en la siguiente */
   .byline {
-    font-size: 12px;
-    line-height: 16px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 12px;
   }
 
-  .stats {
-    gap: 8px 16px;
-    margin-top: 8px;
+  .byline span:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .byline span:first-child + span::before {
+    content: none;
+  }
+
+  .byline span + span::before {
+    left: -12px;
+    width: 12px;
   }
 
   .score {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    column-gap: 12px;
-    align-items: center;
+    gap: 12px;
   }
 
-  .score-value {
-    font-size: 24px;
-    line-height: 32px;
+  /* En celular la acción baja de la línea del título a la suya, bajo los datos */
+  .video-text,
+  .video-text:has(.video-action) {
+    display: flex;
+    flex-direction: column;
   }
 
-  .strip {
-    margin-top: 0;
+  .video-text .video-action {
+    order: 1;
+    align-self: flex-start;
+    height: auto;
+    margin-top: 8px;
   }
 
-  .strip-caption {
-    grid-column: 2;
-  }
-
-  .score-missing {
-    grid-column: 1 / -1;
+  .stats {
+    grid-template-columns: var(--thumb) minmax(0, 1fr);
+    gap: 8px 12px;
   }
 
   .empty {
