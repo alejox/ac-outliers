@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { Channel, ScoredVideo } from '~~/shared/outliers'
+import { CATEGORY_OPTIONS, categoryName } from '~~/shared/categories'
+import { channelStats } from '~~/shared/channel-stats'
+import { applyFilters, defaultFilters, topWords } from '~~/shared/filters'
 
-type Format = 'long' | 'short' | 'all'
-type Sort = 'score' | 'velocity' | 'views'
-type Mode = 'following' | 'discover'
+type Mode = 'following' | 'discover' | 'channels'
 type FoundChannel = Channel & { followed: boolean }
-
-const PAGE_SIZE = 40
 
 const { data, error: loadError, refresh } = await useFetch('/api/outliers')
 
@@ -18,48 +17,43 @@ const needsLogin = computed(() => loadError.value?.statusCode === 401)
 const channelById = computed(() => new Map(channels.value.map((c) => [c.id, c])))
 
 const mode = ref<Mode>('following')
+const view = ref<'list' | 'grid'>('list')
 const messageOf = (err: any) => err?.data?.message ?? 'Algo falló. Vuelve a intentar.'
 
+const subscribersOf = (list: Channel[]) => new Map(list.map((c) => [c.id, c.subscriberCount]))
+const categoriesOf = (list: ScoredVideo[]) =>
+  [...new Set(list.map((v) => v.categoryId).filter((id): id is string => id !== null))]
+    .map((id) => ({ id, name: categoryName(id) }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+const countOf = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`)
+
 // Ranking de los canales que sigues
-const format = ref<Format>('long')
-const periodDays = ref(90)
-const minScore = ref(2)
-const sort = ref<Sort>('score')
+const filters = ref(defaultFilters())
 const onlyChannel = ref<string | null>(null)
-const titleFilter = ref('')
-const shown = ref(PAGE_SIZE)
 
-const results = computed(() => {
-  const words = normalizeText(titleFilter.value).split(/\s+/).filter(Boolean)
-  const list = videos.value.filter((v) => {
-    if (format.value !== 'all' && v.isShort !== (format.value === 'short')) return false
-    if (periodDays.value > 0 && v.ageDays > periodDays.value) return false
-    if (onlyChannel.value && v.channelId !== onlyChannel.value) return false
-    if (minScore.value > 0 && (v.score === null || v.score < minScore.value)) return false
-    if (words.length > 0) {
-      const title = normalizeText(v.title)
-      if (!words.every((word) => title.includes(word))) return false
-    }
-    return true
-  })
-  const key: Record<Sort, (v: ScoredVideo) => number> = {
-    score: (v) => v.score ?? -1,
-    velocity: (v) => v.viewsPerDay,
-    views: (v) => v.views,
-  }
-  return list.sort((a, b) => key[sort.value](b) - key[sort.value](a))
-})
-
-watch([format, periodDays, minScore, sort, onlyChannel, titleFilter], () => (shown.value = PAGE_SIZE))
+const results = computed(() => applyFilters(videos.value, filters.value, subscribersOf(channels.value), onlyChannel.value))
+const categories = computed(() => categoriesOf(videos.value))
 
 const summary = computed(() => {
-  const n = results.value.length
-  const what = n === 1 ? '1 video' : `${n} videos`
-  const about = titleFilter.value.trim() ? ` con “${titleFilter.value.trim()}” en el título` : ''
-  const over = minScore.value > 0 ? ` por encima de ${formatScore(minScore.value)}` : ''
-  const when = periodDays.value > 0 ? ` publicados en ${periodLabel(periodDays.value)}` : ''
-  return `${what}${about}${over}${when}`
+  const f = filters.value
+  const about = f.title.trim() ? ` con “${f.title.trim()}” en el título` : ''
+  const over = f.minScore > 0 ? ` por encima de ${formatScore(f.minScore)}` : ''
+  const when = f.periodDays > 0 ? ` publicados en ${periodLabel(f.periodDays)}` : ''
+  return `${countOf(results.value.length, 'video', 'videos')}${about}${over}${when}`
 })
+
+/** Palabras que se repiten en los títulos de lo que está en pantalla. Solo tiene sentido entre outliers. */
+const words = computed(() =>
+  filters.value.minScore > 0 && !filters.value.title.trim() ? topWords(results.value.map((v) => v.title)) : [],
+)
+
+function showChannel(channelId: string) {
+  onlyChannel.value = channelId
+  mode.value = 'following'
+}
+
+// Comparación de canales
+const stats = computed(() => channelStats(channels.value, videos.value))
 
 // Canales
 const newChannel = ref('')
@@ -118,29 +112,39 @@ async function updateAll() {
   }
 }
 
-// Descubrir por tema
-const topic = ref('')
-const topicDays = ref(90)
+// Descubrir en todo YouTube
+const search = reactive({ topic: '', category: '', days: 90, lang: 'es', order: 'relevance' })
 const searching = ref(false)
 const searchError = ref('')
-const searchedTopic = ref('')
+const searchedFor = ref('')
 const discovered = ref<{ channels: FoundChannel[]; videos: ScoredVideo[]; quotaUsed: number } | null>(null)
 const following = ref<string | null>(null)
+const foundFilters = ref(defaultFilters({ periodDays: 0, minScore: 0 }))
 
+const canSearch = computed(() => search.topic.trim().length >= 2 || search.category !== '')
 const foundChannelById = computed(() => new Map((discovered.value?.channels ?? []).map((c) => [c.id, c])))
-const discoveredVideos = computed(() =>
-  [...(discovered.value?.videos ?? [])].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)),
+const foundResults = computed(() =>
+  applyFilters(discovered.value?.videos ?? [], foundFilters.value, subscribersOf(discovered.value?.channels ?? [])),
 )
-const discoveredChannelCount = computed(() => new Set(discoveredVideos.value.map((v) => v.channelId)).size)
+const foundCategories = computed(() => categoriesOf(discovered.value?.videos ?? []))
+const foundSummary = computed(() => {
+  const total = discovered.value?.videos.length ?? 0
+  const shown = foundResults.value.length
+  const count = shown === total ? countOf(total, 'video', 'videos') : `${shown} de ${countOf(total, 'video', 'videos')}`
+  return `${count} de ${searchedFor.value}. Gastó ${discovered.value?.quotaUsed} unidades.`
+})
 
-async function searchTopic() {
-  const q = topic.value.trim()
-  if (q.length < 2 || searching.value) return
+async function searchYouTube() {
+  if (!canSearch.value || searching.value) return
   searching.value = true
   searchError.value = ''
+  const topic = search.topic.trim()
   try {
-    discovered.value = await $fetch('/api/search', { query: { q, days: topicDays.value } })
-    searchedTopic.value = q
+    discovered.value = await $fetch('/api/search', {
+      query: { q: topic, category: search.category, days: search.days, lang: search.lang, order: search.order },
+    })
+    searchedFor.value = [topic && `“${topic}”`, search.category && categoryName(search.category)].filter(Boolean).join(' en ')
+    foundFilters.value = defaultFilters({ periodDays: 0, minScore: 0 })
   } catch (err) {
     searchError.value = messageOf(err)
   } finally {
@@ -236,12 +240,7 @@ async function logIn() {
             type="button"
             :aria-pressed="onlyChannel === c.id"
             :title="onlyChannel === c.id ? 'Ver todos los canales' : `Ver solo ${c.title}`"
-            @click="
-              () => {
-                onlyChannel = onlyChannel === c.id ? null : c.id
-                mode = 'following'
-              }
-            "
+            @click="onlyChannel === c.id ? (onlyChannel = null) : showChannel(c.id)"
           >
             <img v-if="c.thumbnailUrl" class="avatar" :src="c.thumbnailUrl" alt="" loading="lazy" />
             <span v-else class="avatar avatar-blank" :style="{ '--hue': hueOf(c.id) }" aria-hidden="true">
@@ -288,107 +287,62 @@ async function logIn() {
     </section>
 
     <section v-if="!needsLogin" class="ranking" aria-labelledby="ranking-title">
-      <h2 id="ranking-title" class="sr-only">Ranking de videos</h2>
+      <h2 id="ranking-title" class="sr-only">Videos y canales</h2>
 
-      <div v-if="!isDemo" class="modes" role="group" aria-label="Dónde buscar">
+      <div class="modes" role="group" aria-label="Sección">
         <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
-        <button type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir por tema</button>
+        <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
+        <button type="button" :aria-pressed="mode === 'channels'" @click="mode = 'channels'">Comparar canales</button>
       </div>
 
       <!-- Ranking de los canales que sigues -->
       <template v-if="mode === 'following'">
-        <div class="filters">
-          <div class="segmented" role="group" aria-label="Formato">
-            <button
-              v-for="option in [
-                { value: 'long', label: 'Videos largos' },
-                { value: 'short', label: 'Shorts' },
-                { value: 'all', label: 'Todo' },
-              ]"
-              :key="option.value"
-              type="button"
-              :aria-pressed="format === option.value"
-              @click="format = option.value as Format"
-            >
-              {{ option.label }}
-            </button>
-          </div>
+        <FilterBar v-model="filters" :categories="categories" show-format show-period />
 
-          <label class="field">
-            <span>Publicados en</span>
-            <select v-model.number="periodDays">
-              <option :value="7">7 días</option>
-              <option :value="30">30 días</option>
-              <option :value="90">90 días</option>
-              <option :value="365">1 año</option>
-              <option :value="0">Cualquier fecha</option>
-            </select>
-          </label>
+        <p v-if="words.length > 0" class="words">
+          <span>Se repite en los títulos</span>
+          <button v-for="w in words" :key="w.word" type="button" class="word" @click="filters.title = w.word">
+            {{ w.word }} <span class="dim">{{ w.count }}</span>
+          </button>
+        </p>
 
-          <label class="field">
-            <span>Score mínimo</span>
-            <select v-model.number="minScore">
-              <option :value="0">Sin mínimo</option>
-              <option :value="1.5">1,5×</option>
-              <option :value="2">2×</option>
-              <option :value="3">3×</option>
-              <option :value="5">5×</option>
-              <option :value="10">10×</option>
-            </select>
-          </label>
+        <VideoResults
+          v-if="results.length > 0"
+          v-model:view="view"
+          :videos="results"
+          :channels="channelById"
+          :summary="summary"
+        />
 
-          <label class="field">
-            <span>Ordenar por</span>
-            <select v-model="sort">
-              <option value="score">Score</option>
-              <option value="velocity">Vistas por día</option>
-              <option value="views">Vistas totales</option>
-            </select>
-          </label>
-
-          <label class="field field-text">
-            <span>Buscar en títulos</span>
-            <input v-model="titleFilter" type="search" placeholder="OBS, Claude, tutorial" autocomplete="off" />
-          </label>
-        </div>
-
-        <p v-if="results.length > 0" class="summary" aria-live="polite">{{ summary }}</p>
-
-        <ol v-if="results.length > 0" class="rows">
-          <VideoRow
-            v-for="v in results.slice(0, shown)"
-            :key="v.id"
-            :video="v"
-            :channel-title="channelById.get(v.channelId)?.title ?? ''"
-          />
-        </ol>
-
-        <button v-if="results.length > shown" class="button button-quiet more" type="button" @click="shown += PAGE_SIZE">
-          Ver {{ Math.min(PAGE_SIZE, results.length - shown) }} más
-        </button>
-
-        <div v-if="results.length === 0 && !loadError" class="empty">
+        <div v-else-if="!loadError" class="empty">
           <template v-if="channels.length === 0">
             <p class="empty-title">Todavía no sigues ningún canal</p>
             <p>Agrega arriba los canales de tu nicho, o los tuyos, para ver qué videos se salieron de lo normal.</p>
           </template>
           <template v-else>
             <p class="empty-title">Ningún video cumple estos filtros</p>
-            <p>Baja el score mínimo, amplía el periodo o borra el texto de búsqueda.</p>
+            <p>Baja el score mínimo, amplía el periodo o quita algún filtro.</p>
           </template>
         </div>
       </template>
 
-      <!-- Descubrir por tema -->
-      <template v-else>
-        <form class="discover" @submit.prevent="searchTopic">
+      <!-- Descubrir en todo YouTube -->
+      <template v-else-if="mode === 'discover'">
+        <form class="discover" @submit.prevent="searchYouTube">
           <label class="field field-text">
             <span>Tema</span>
-            <input v-model="topic" type="search" placeholder="plugins de OBS" autocomplete="off" :disabled="searching" />
+            <input v-model="search.topic" type="search" placeholder="plugins de OBS" autocomplete="off" :disabled="searching" />
+          </label>
+          <label class="field">
+            <span>Categoría</span>
+            <select v-model="search.category" :disabled="searching">
+              <option value="">Todas</option>
+              <option v-for="c in CATEGORY_OPTIONS" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
           </label>
           <label class="field">
             <span>Publicados en</span>
-            <select v-model.number="topicDays" :disabled="searching">
+            <select v-model.number="search.days" :disabled="searching">
               <option :value="7">7 días</option>
               <option :value="30">30 días</option>
               <option :value="90">90 días</option>
@@ -396,50 +350,82 @@ async function logIn() {
               <option :value="0">Cualquier fecha</option>
             </select>
           </label>
-          <button class="button" type="submit" :disabled="searching || topic.trim().length < 2">
+          <label class="field">
+            <span>Idioma</span>
+            <select v-model="search.lang" :disabled="searching">
+              <option value="es">Español primero</option>
+              <option value="">Cualquiera</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Traer</span>
+            <select v-model="search.order" :disabled="searching">
+              <option value="relevance">Los más relevantes</option>
+              <option value="viewCount">Los más vistos</option>
+            </select>
+          </label>
+          <button class="button" type="submit" :disabled="searching || !canSearch">
             {{ searching ? 'Buscando' : 'Buscar en YouTube' }}
           </button>
         </form>
         <p class="hint">
-          Busca videos largos en todo YouTube y los compara con lo normal de su canal. Cada búsqueda gasta unas 150
-          de las 10.000 unidades diarias de tu cuota.
+          Busca videos largos en todo YouTube por tema, por categoría o por ambos, y los compara con lo normal de su
+          canal. Cada búsqueda gasta unas 150 de las 10.000 unidades diarias de tu cuota.
         </p>
         <p v-if="searchError" class="notice notice-error" role="alert">{{ searchError }}</p>
 
         <template v-if="discovered">
-          <p v-if="discoveredVideos.length > 0" class="summary" aria-live="polite">
-            {{ discoveredVideos.length === 1 ? '1 video' : `${discoveredVideos.length} videos` }} sobre “{{ searchedTopic }}”
-            de {{ discoveredChannelCount === 1 ? '1 canal' : `${discoveredChannelCount} canales` }}. Gastó
-            {{ discovered.quotaUsed }} unidades.
-          </p>
+          <template v-if="discovered.videos.length > 0">
+            <FilterBar v-model="foundFilters" :categories="foundCategories" />
 
-          <ol v-if="discoveredVideos.length > 0" class="rows">
-            <VideoRow
-              v-for="v in discoveredVideos"
-              :key="v.id"
-              :video="v"
-              :channel-title="foundChannelById.get(v.channelId)?.title ?? ''"
+            <VideoResults
+              v-if="foundResults.length > 0"
+              v-model:view="view"
+              :videos="foundResults"
+              :channels="foundChannelById"
+              :summary="foundSummary"
             >
-              <template v-if="foundChannelById.get(v.channelId)" #default>
-                <span v-if="foundChannelById.get(v.channelId)!.followed" class="followed">Ya sigues este canal</span>
-                <button
-                  v-else
-                  class="button button-quiet button-small"
-                  type="button"
-                  :disabled="following !== null"
-                  @click="followChannel(foundChannelById.get(v.channelId)!)"
-                >
-                  {{ following === v.channelId ? 'Agregando' : 'Seguir canal' }}
-                </button>
+              <template #action="{ video }">
+                <template v-if="foundChannelById.get(video.channelId)">
+                  <span v-if="foundChannelById.get(video.channelId)!.followed" class="followed">Ya sigues este canal</span>
+                  <button
+                    v-else
+                    class="button button-quiet button-small"
+                    type="button"
+                    :disabled="following !== null"
+                    @click="followChannel(foundChannelById.get(video.channelId)!)"
+                  >
+                    {{ following === video.channelId ? 'Agregando' : 'Seguir canal' }}
+                  </button>
+                </template>
               </template>
-            </VideoRow>
-          </ol>
+            </VideoResults>
+
+            <div v-else class="empty">
+              <p class="empty-title">Ningún resultado cumple estos filtros</p>
+              <p>La búsqueda trajo {{ countOf(discovered.videos.length, 'video', 'videos') }}. Quita algún filtro para verlos.</p>
+            </div>
+          </template>
 
           <div v-else class="empty">
-            <p class="empty-title">No hay videos largos sobre “{{ searchedTopic }}”</p>
-            <p>Prueba con otras palabras o amplía el periodo.</p>
+            <p class="empty-title">No hay videos largos de {{ searchedFor }}</p>
+            <p>Prueba con otras palabras, otra categoría o un periodo más amplio.</p>
           </div>
         </template>
+      </template>
+
+      <!-- Comparar canales -->
+      <template v-else>
+        <template v-if="channels.length > 0">
+          <p class="hint">
+            Cómo le va a cada canal que sigues. Toca un encabezado para ordenar, o un canal para ver sus videos.
+          </p>
+          <ChannelTable :stats="stats" @select="showChannel" />
+        </template>
+        <div v-else class="empty">
+          <p class="empty-title">Todavía no sigues ningún canal</p>
+          <p>Agrega al menos dos canales arriba para compararlos.</p>
+        </div>
       </template>
     </section>
   </div>

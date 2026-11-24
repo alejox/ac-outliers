@@ -21,7 +21,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await dbSaveChannel(channel)
-  const videos = await syncChannel(channel.id)
+  const videos = await syncChannel(channel.id, channel)
   return { channel, videos }
 })

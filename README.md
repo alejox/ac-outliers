@@ -43,12 +43,38 @@ Llena `NUXT_YOUTUBE_API_KEY`, `NUXT_SUPABASE_URL` y `NUXT_SUPABASE_SECRET_KEY`, 
 
 Las tres claves se usan solo en el servidor; nunca llegan al navegador.
 
-## Buscar
+## Qué puedes hacer
 
-- **En tus canales**: el campo "Buscar en títulos" filtra el ranking por palabras, sin gastar cuota.
-- **Descubrir por tema**: busca videos largos en todo YouTube, los puntúa contra lo normal de su canal
-  y te deja seguir los canales que valgan la pena. Los resultados no se guardan: repetir una búsqueda
-  vuelve a gastar cuota.
+Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de vidIQ:
+
+- **Tus canales**: ranking de los videos de los canales que sigues. Filtra por formato, fecha, score,
+  palabras del título, tamaño del canal, vistas mínimas, duración y categoría de YouTube. Ordena por
+  score, vistas por hora, vistas totales, interacción o fecha. Nada de esto gasta cuota.
+- **Vista de miniaturas**: la misma lista como cuadrícula, para estudiar el empaque de los outliers.
+- **Palabras que se repiten**: las que más aparecen en los títulos de los outliers en pantalla.
+- **Descubrir**: busca videos largos en todo YouTube por tema, por categoría o por ambos; prefiere
+  resultados en español y puede traer los más relevantes o los más vistos. Los puntúa contra lo normal
+  de su canal y te deja seguir el canal desde el resultado. No se guardan: repetir una búsqueda vuelve
+  a gastar cuota.
+- **Comparar canales**: una fila por canal con suscriptores, vistas normales, alcance (vistas normales
+  ÷ suscriptores), subidas en 30 días, cuántos videos llegaron a 2× en 90 días y su mejor video.
+
+### Métricas
+
+| Métrica | Qué es |
+| --- | --- |
+| Score | Vistas ÷ vistas normales del canal en ese formato |
+| Vistas por hora | Ritmo desde la actualización anterior. Sin historial todavía, el promedio desde que se publicó |
+| Interacción | (Likes + comentarios) ÷ vistas |
+
+Las vistas por hora recientes aparecen a partir del segundo día de datos de cada video; por eso conviene
+dejar activa la actualización diaria.
+
+### Lo que no hace
+
+- Tendencias generales por categoría: YouTube retiró esa lista en 2025 y su API solo entrega música, cine y videojuegos.
+- Volumen de búsqueda de palabras clave: la API no lo da.
+- Ideas con IA y alertas: quedan para después.
 
 ## Cómo se calcula
 
@@ -67,15 +93,16 @@ La cuota gratuita es de 10.000 unidades diarias.
 | Acción | Costo aproximado |
 | --- | --- |
 | Agregar un canal | 5 unidades |
-| Actualizar un canal | 4 unidades |
-| Descubrir por tema | 100 de la búsqueda + 2 por cada canal encontrado (unas 150) |
+| Actualizar un canal | 5 unidades |
+| Descubrir | 100 de la búsqueda + 2 por cada canal encontrado (unas 150) |
 
-Con la cuota gratuita alcanzan unas 60 búsquedas por tema al día.
+Con la cuota gratuita alcanzan unas 60 búsquedas al día.
 
-## Historial de vistas
+## Historial
 
-Cada actualización guarda una foto de las vistas del día en `video_snapshots`. La interfaz todavía no la muestra;
-es la base para la gráfica de crecimiento por video.
+Cada actualización guarda una foto del día: las vistas de cada video (`video_snapshots`) y las cifras de
+cada canal (`channel_snapshots`). Con la primera se calculan las vistas por hora recientes; la segunda es
+la base para las gráficas de crecimiento de suscriptores, que la interfaz todavía no muestra.
 
 ## Migraciones automáticas
 
@@ -117,7 +144,7 @@ npm test
 app/                 Interfaz (Vue)
 server/api/          Rutas: outliers, canales, búsqueda, actualización
 server/utils/        Cliente de YouTube, Supabase, datos demo
-shared/              Cálculo del score y lectura de enlaces de canal
+shared/              Score, filtros, categorías y resumen por canal (lógica pura)
 supabase/migrations  Cambios de la base de datos, en orden
 tests/               Tests del cálculo
 ```

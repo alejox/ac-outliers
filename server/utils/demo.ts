@@ -3,11 +3,11 @@ import type { Channel, Video } from '~~/shared/outliers'
 // Datos de ejemplo para probar la app sin claves. Los canales son inventados.
 
 const CHANNELS = [
-  { title: 'Código en Pijama', handle: '@codigoenpijama', subs: 48_200, typical: 9_000 },
-  { title: 'Pixel Forja', handle: '@pixelforja', subs: 212_000, typical: 41_000 },
-  { title: 'Taller de Directos', handle: '@tallerdedirectos', subs: 12_900, typical: 2_600 },
-  { title: 'La Terminal de Nico', handle: '@laterminaldenico', subs: 631_000, typical: 118_000 },
-  { title: 'Byte a Byte', handle: '@byteabyte', subs: 87_400, typical: 15_500 },
+  { title: 'Código en Pijama', handle: '@codigoenpijama', subs: 48_200, typical: 9_000, category: '28' },
+  { title: 'Pixel Forja', handle: '@pixelforja', subs: 212_000, typical: 41_000, category: '20' },
+  { title: 'Taller de Directos', handle: '@tallerdedirectos', subs: 12_900, typical: 2_600, category: '26' },
+  { title: 'La Terminal de Nico', handle: '@laterminaldenico', subs: 631_000, typical: 118_000, category: '28' },
+  { title: 'Byte a Byte', handle: '@byteabyte', subs: 87_400, typical: 15_500, category: '27' },
 ]
 
 const TOPICS = [
@@ -55,6 +55,8 @@ export function demoData(now: Date = new Date()): { channels: Channel[]; videos:
       handle: c.handle,
       thumbnailUrl: null,
       subscriberCount: c.subs,
+      viewCount: c.typical * 400,
+      videoCount: 180,
       lastSyncedAt: now.toISOString(),
     })
 
@@ -73,6 +75,7 @@ export function demoData(now: Date = new Date()): { channels: Channel[]; videos:
         publishedAt: new Date(now.getTime() - ageDays * 86_400_000).toISOString(),
         durationSeconds: isShort ? 20 + Math.floor(rand() * 40) : 300 + Math.floor(rand() * 1500),
         isShort,
+        categoryId: c.category,
         views,
         likes: Math.round(views * (0.03 + rand() * 0.03)),
         comments: Math.round(views * (0.002 + rand() * 0.004)),

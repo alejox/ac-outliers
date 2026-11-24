@@ -1,4 +1,5 @@
 import { createError } from 'h3'
+import type { Channel } from '~~/shared/outliers'
 
 /**
  * Sin ninguna clave configurada la app corre en modo demo, con datos de ejemplo.
@@ -37,8 +38,13 @@ export function requireLive(): void {
   }
 }
 
-/** Trae los videos de un canal desde YouTube y los guarda. Devuelve cuántos encontró. */
-export async function syncChannel(channelId: string): Promise<number> {
+/**
+ * Refresca las cifras de un canal y sus videos desde YouTube y los guarda. Devuelve cuántos videos encontró.
+ * Si ya tienes el canal recién leído, pásalo para no gastar otra consulta.
+ */
+export async function syncChannel(channelId: string, fresh?: Channel): Promise<number> {
+  const channel = fresh ?? (await fetchChannel({ id: channelId }))
+  if (channel) await dbSaveChannel(channel)
   const videos = await fetchChannelVideos(channelId)
   await dbSaveChannelVideos(channelId, videos)
   return videos.length

@@ -60,6 +60,8 @@ function toChannel(item: any): Channel {
     handle: item.snippet?.customUrl ?? null,
     thumbnailUrl: pickThumb(item.snippet?.thumbnails),
     subscriberCount: item.statistics?.hiddenSubscriberCount ? null : toNumber(item.statistics?.subscriberCount),
+    viewCount: toNumber(item.statistics?.viewCount),
+    videoCount: toNumber(item.statistics?.videoCount),
     lastSyncedAt: null,
   }
 }
@@ -94,6 +96,7 @@ function toVideo(item: any, isShort: boolean | null): Video | null {
     publishedAt: item.snippet?.publishedAt,
     durationSeconds,
     isShort: isShort ?? (durationSeconds > 0 && durationSeconds <= 60),
+    categoryId: item.snippet?.categoryId ?? null,
     views: Number(item.statistics.viewCount),
     likes: toNumber(item.statistics.likeCount),
     comments: toNumber(item.statistics.commentCount),
@@ -167,15 +170,30 @@ export async function fetchChannelsByIds(ids: string[]): Promise<Channel[]> {
   return channels
 }
 
-/** Busca videos por tema en todo YouTube. Es la llamada cara: 100 unidades. */
-export async function searchVideoIds(query: string, days: number): Promise<string[]> {
+export interface SearchOptions {
+  /** Palabras clave. Puede ir vacío si hay categoría. */
+  query: string
+  /** 0 = cualquier fecha */
+  days: number
+  /** ID de categoría de YouTube, o '' para todas. */
+  categoryId: string
+  /** Código de idioma (por ejemplo 'es') para preferir resultados en ese idioma, o ''. */
+  language: string
+  order: 'relevance' | 'viewCount'
+}
+
+/** Busca videos en todo YouTube por tema, categoría o ambos. Es la llamada cara: 100 unidades. */
+export async function searchVideoIds(options: SearchOptions): Promise<string[]> {
+  const { query, days, categoryId, language, order } = options
   const params: Record<string, string | number> = {
     part: 'id',
-    q: query,
     type: 'video',
-    order: 'relevance',
+    order,
     maxResults: SEARCH_RESULTS,
   }
+  if (query) params.q = query
+  if (categoryId) params.videoCategoryId = categoryId
+  if (language) params.relevanceLanguage = language
   if (days > 0) params.publishedAfter = new Date(Date.now() - days * 86_400_000).toISOString()
   const res = await yt<{ items?: any[] }>('search', params)
   return (res.items ?? []).map((i) => i.id?.videoId).filter(Boolean)

@@ -14,6 +14,7 @@ function video(over: Partial<Video>): Video {
     publishedAt: daysAgo(30),
     durationSeconds: 600,
     isShort: false,
+    categoryId: null,
     views: 1000,
     likes: null,
     comments: null,
@@ -76,13 +77,38 @@ describe('scoreVideos', () => {
     expect(scored[5]!.score).toBe(0.01)
   })
 
-  it('calcula vistas por día sin dividir por cero', () => {
+  it('calcula vistas por hora promedio sin dividir por cero', () => {
     const [fresh, old] = scoreVideos(
-      [video({ views: 500, publishedAt: daysAgo(0.1) }), video({ views: 3000, publishedAt: daysAgo(30) })],
+      [video({ views: 500, publishedAt: daysAgo(0.01) }), video({ views: 24_000, publishedAt: daysAgo(10) })],
       NOW,
     )
-    expect(fresh!.viewsPerDay).toBe(500)
-    expect(old!.viewsPerDay).toBe(100)
+    expect(fresh!.viewsPerHour).toBe(500)
+    expect(old!.viewsPerHour).toBe(100)
+    expect(old!.recentPace).toBe(false)
+  })
+
+  it('usa la lectura anterior para medir el ritmo reciente', () => {
+    const v = video({ id: 'a', views: 10_000, publishedAt: daysAgo(400), fetchedAt: NOW.toISOString() })
+    const previous = new Map([['a', { views: 9_520, at: new Date(NOW.getTime() - 24 * 3_600_000).toISOString() }]])
+    const [scored] = scoreVideos([v], NOW, previous)
+    expect(scored!.viewsPerHour).toBe(20)
+    expect(scored!.recentPace).toBe(true)
+  })
+
+  it('ignora lecturas demasiado cercanas o con menos vistas que antes', () => {
+    const at = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString()
+    const a = video({ id: 'a', views: 2_400, publishedAt: daysAgo(100), fetchedAt: NOW.toISOString() })
+    const close = scoreVideos([a], NOW, new Map([['a', { views: 2_000, at: at(2) }]]))[0]!
+    const lower = scoreVideos([a], NOW, new Map([['a', { views: 9_000, at: at(24) }]]))[0]!
+    expect(close.recentPace).toBe(false)
+    expect(lower.recentPace).toBe(false)
+    expect(close.viewsPerHour).toBe(1)
+  })
+
+  it('calcula la interacción y la deja en null si los likes están ocultos', () => {
+    const [shown, hidden] = scoreVideos([video({ views: 1000, likes: 40, comments: 10 }), video({ likes: null })], NOW)
+    expect(shown!.engagement).toBe(0.05)
+    expect(hidden!.engagement).toBeNull()
   })
 })
 

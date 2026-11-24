@@ -59,9 +59,12 @@ export function hueOf(id: string) {
 export const videoUrl = (v: ScoredVideo) =>
   v.isShort ? `https://www.youtube.com/shorts/${v.id}` : `https://www.youtube.com/watch?v=${v.id}`
 
-/** Minúsculas y sin tildes, para que "codigo" encuentre "Código". */
-export const normalizeText = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+/** Vistas por hora: con un decimal cuando son pocas, compactas cuando son muchas. */
+export function formatPace(perHour: number) {
+  if (perHour < 10) return perHour.toLocaleString('es', { maximumFractionDigits: 1 })
+  return compact.format(Math.round(perHour))
+}
+
+export function formatPercent(ratio: number, digits = 1) {
+  return `${(ratio * 100).toLocaleString('es', { maximumFractionDigits: digits })} %`
+}

@@ -6,7 +6,7 @@ export default defineEventHandler(async () => {
     const { channels, videos } = demoData()
     return { demo: true, open: false, channels, videos: scoreVideos(videos) }
   }
-  const [channels, videos] = await Promise.all([dbListChannels(), dbListVideos()])
+  const [channels, videos, previous] = await Promise.all([dbListChannels(), dbListVideos(), dbListPreviousReadings()])
   // open: la app tiene datos reales y ninguna contraseña que la proteja.
-  return { demo: false, open: !useRuntimeConfig().appPassword, channels, videos: scoreVideos(videos) }
+  return { demo: false, open: !useRuntimeConfig().appPassword, channels, videos: scoreVideos(videos, new Date(), previous) }
 })

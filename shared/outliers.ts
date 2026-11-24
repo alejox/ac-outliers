@@ -7,6 +7,8 @@ export interface Channel {
   handle: string | null
   thumbnailUrl: string | null
   subscriberCount: number | null
+  viewCount: number | null
+  videoCount: number | null
   lastSyncedAt: string | null
 }
 
@@ -18,9 +20,19 @@ export interface Video {
   publishedAt: string
   durationSeconds: number
   isShort: boolean
+  /** Categoría de YouTube (ver shared/categories.ts). null en videos guardados antes de que existiera. */
+  categoryId: string | null
   views: number
   likes: number | null
   comments: number | null
+  /** Cuándo se leyeron estas cifras de YouTube. Si falta, se asume ahora. */
+  fetchedAt?: string
+}
+
+/** Una lectura anterior de las vistas de un video, para medir su ritmo reciente. */
+export interface PreviousReading {
+  views: number
+  at: string
 }
 
 export interface ScoredVideo extends Video {
@@ -29,14 +41,22 @@ export interface ScoredVideo extends Video {
   /** Vistas normales del canal para ese formato (mediana). */
   baseline: number | null
   ageDays: number
-  viewsPerDay: number
+  /** Vistas por hora. Recientes si hay una lectura anterior; si no, el promedio desde que se publicó. */
+  viewsPerHour: number
+  /** true si viewsPerHour mide el ritmo reciente y no el promedio de toda la vida del video. */
+  recentPace: boolean
+  /** (likes + comentarios) ÷ vistas. null si el canal oculta los likes. */
+  engagement: number | null
 }
 
 /** Con menos videos que esto la mediana no dice nada, así que no se calcula score. */
 export const MIN_BASELINE_VIDEOS = 5
 /** Los videos más nuevos que esto siguen acumulando vistas y bajarían la mediana. */
 export const MIN_BASELINE_AGE_DAYS = 2
+/** Entre dos lecturas más cercanas que esto el ritmo sale demasiado ruidoso. */
+export const MIN_PACE_HOURS = 6
 
+const HOUR_MS = 3_600_000
 const DAY_MS = 86_400_000
 
 export function median(values: number[]): number | null {
@@ -57,8 +77,15 @@ export function parseIsoDuration(iso: string): number {
 /**
  * Calcula el score de cada video contra la mediana de su propio canal y formato.
  * Shorts y videos largos nunca se comparan entre sí: sus vistas no son equivalentes.
+ *
+ * `previous` trae la lectura anterior de cada video (por id). Con ella las vistas por hora
+ * miden lo que el video está haciendo ahora, no su promedio histórico.
  */
-export function scoreVideos(videos: Video[], now: Date = new Date()): ScoredVideo[] {
+export function scoreVideos(
+  videos: Video[],
+  now: Date = new Date(),
+  previous?: Map<string, PreviousReading>,
+): ScoredVideo[] {
   const nowMs = now.getTime()
   const ageOf = (v: Video) => Math.max(0, (nowMs - new Date(v.publishedAt).getTime()) / DAY_MS)
 
@@ -79,12 +106,26 @@ export function scoreVideos(videos: Video[], now: Date = new Date()): ScoredVide
   return videos.map((v) => {
     const ageDays = ageOf(v)
     const baseline = baselines.get(`${v.channelId}|${v.isShort}`) ?? null
+
+    let viewsPerHour = v.views / Math.max(ageDays * 24, 1)
+    let recentPace = false
+    const before = previous?.get(v.id)
+    if (before) {
+      const hours = ((v.fetchedAt ? new Date(v.fetchedAt).getTime() : nowMs) - new Date(before.at).getTime()) / HOUR_MS
+      if (hours >= MIN_PACE_HOURS && v.views >= before.views) {
+        viewsPerHour = (v.views - before.views) / hours
+        recentPace = true
+      }
+    }
+
     return {
       ...v,
       ageDays,
-      viewsPerDay: v.views / Math.max(ageDays, 1),
       baseline,
       score: baseline && baseline > 0 ? v.views / baseline : null,
+      viewsPerHour,
+      recentPace,
+      engagement: v.likes === null || v.views === 0 ? null : (v.likes + (v.comments ?? 0)) / v.views,
     }
   })
 }

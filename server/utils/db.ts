@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createError } from 'h3'
-import type { Channel, Video } from '~~/shared/outliers'
+import type { Channel, PreviousReading, Video } from '~~/shared/outliers'
 
 /** Los datos de YouTube que no se refrescan en este plazo se borran (política de la API). */
 const STALE_AFTER_DAYS = 30
@@ -42,6 +42,8 @@ const toChannel = (r: any): Channel => ({
   handle: r.handle,
   thumbnailUrl: r.thumbnail_url,
   subscriberCount: r.subscriber_count,
+  viewCount: r.view_count ?? null,
+  videoCount: r.video_count ?? null,
   lastSyncedAt: r.last_synced_at,
 })
 
@@ -53,9 +55,11 @@ const toVideo = (r: any): Video => ({
   publishedAt: r.published_at,
   durationSeconds: r.duration_seconds,
   isShort: r.is_short,
+  categoryId: r.category_id ?? null,
   views: Number(r.views),
   likes: r.likes === null ? null : Number(r.likes),
   comments: r.comments === null ? null : Number(r.comments),
+  fetchedAt: r.updated_at,
 })
 
 export async function dbListChannels(): Promise<Channel[]> {
@@ -64,6 +68,7 @@ export async function dbListChannels(): Promise<Channel[]> {
   return (data ?? []).map(toChannel)
 }
 
+/** Guarda o refresca un canal y deja una foto diaria de sus cifras. */
 export async function dbSaveChannel(channel: Channel): Promise<void> {
   const { error } = await db().from('channels').upsert({
     id: channel.id,
@@ -71,8 +76,56 @@ export async function dbSaveChannel(channel: Channel): Promise<void> {
     handle: channel.handle,
     thumbnail_url: channel.thumbnailUrl,
     subscriber_count: channel.subscriberCount,
+    view_count: channel.viewCount,
+    video_count: channel.videoCount,
   })
   check(error, 'guardar el canal')
+
+  const { error: snapError } = await db()
+    .from('channel_snapshots')
+    .upsert(
+      {
+        channel_id: channel.id,
+        captured_on: new Date().toISOString().slice(0, 10),
+        subscriber_count: channel.subscriberCount,
+        view_count: channel.viewCount,
+        video_count: channel.videoCount,
+      },
+      { onConflict: 'channel_id,captured_on' },
+    )
+  check(snapError, 'guardar el historial del canal')
+}
+
+/**
+ * La lectura de vistas más reciente de cada video anterior a hoy.
+ * Comparada con las vistas actuales da el ritmo real de las últimas horas.
+ */
+export async function dbListPreviousReadings(): Promise<Map<string, PreviousReading>> {
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const since = new Date(now.getTime() - 4 * 86_400_000).toISOString().slice(0, 10)
+
+  const readings = new Map<string, PreviousReading>()
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db()
+      .from('video_snapshots')
+      .select('video_id, captured_on, captured_at, views')
+      .gte('captured_on', since)
+      .lt('captured_on', today)
+      .order('captured_on')
+      .order('video_id')
+      .range(from, from + PAGE - 1)
+    check(error, 'leer el historial de vistas')
+    // Vienen de la más antigua a la más nueva: la última de cada video gana.
+    for (const row of data ?? []) {
+      readings.set(row.video_id, {
+        views: Number(row.views),
+        at: row.captured_at ?? `${row.captured_on}T12:00:00Z`,
+      })
+    }
+    if (!data || data.length < PAGE) break
+  }
+  return readings
 }
 
 export async function dbDeleteChannel(id: string): Promise<void> {
@@ -114,6 +167,7 @@ export async function dbSaveChannelVideos(channelId: string, videos: Video[]): P
           published_at: v.publishedAt,
           duration_seconds: v.durationSeconds,
           is_short: v.isShort,
+          category_id: v.categoryId,
           views: v.views,
           likes: v.likes,
           comments: v.comments,
@@ -125,7 +179,7 @@ export async function dbSaveChannelVideos(channelId: string, videos: Video[]): P
     const { error: snapError } = await db()
       .from('video_snapshots')
       .upsert(
-        videos.map((v) => ({ video_id: v.id, captured_on: nowIso.slice(0, 10), views: v.views })),
+        videos.map((v) => ({ video_id: v.id, captured_on: nowIso.slice(0, 10), captured_at: nowIso, views: v.views })),
         { onConflict: 'video_id,captured_on' },
       )
     check(snapError, 'guardar el historial de vistas')
