@@ -31,4 +31,4 @@ jobs:
             echo "::error::Falta el secreto SUPABASE_DB_URL en el repo."
             exit 1
           fi
-          supabase db push --remote="$SUPABASE_DB_URL"
+          supabase db push --remote="$SUPABASE_DB_URL" --yes
