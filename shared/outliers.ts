@@ -129,3 +129,24 @@ export function scoreVideos(
     }
   })
 }
+
+/** Un tema que sigues en todo YouTube. */
+export interface Topic {
+  id: string
+  query: string
+  categoryId: string
+  language: string
+  days: number
+  fetchedAt: string | null
+}
+
+/**
+ * Pone al día la antigüedad de videos puntuados hace un rato (resultados guardados).
+ * El score no cambia; las vistas por hora vuelven a ser el promedio desde la publicación.
+ */
+export function refreshAges(videos: ScoredVideo[], now: Date = new Date()): ScoredVideo[] {
+  return videos.map((v) => {
+    const ageDays = Math.max(0, (now.getTime() - new Date(v.publishedAt).getTime()) / DAY_MS)
+    return { ...v, ageDays, viewsPerHour: v.views / Math.max(ageDays * 24, 1), recentPace: false }
+  })
+}

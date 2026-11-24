@@ -1,6 +1,6 @@
 /**
- * Actualización diaria de todos los canales (la llama el cron de Vercel, ver vercel.json).
- * Es lo que construye el historial de vistas aunque nadie abra la app.
+ * Actualización diaria de todos los canales y temas (la llama el cron de Vercel, ver vercel.json).
+ * Es lo que construye el historial de vistas y mantiene las tendencias frescas aunque nadie abra la app.
  * Vercel envía "Authorization: Bearer <CRON_SECRET>" si defines esa variable de entorno.
  */
 export default defineEventHandler(async (event) => {
@@ -19,5 +19,14 @@ export default defineEventHandler(async (event) => {
       failed.push(channel.title)
     }
   }
-  return { synced: channels.length - failed.length, failed }
+  // Los temas van después: si la cuota se agota, los canales ya quedaron al día.
+  const topics = await dbListTopics()
+  for (const topic of topics) {
+    try {
+      await refreshTopic(topic)
+    } catch {
+      failed.push(topic.query || topic.categoryId)
+    }
+  }
+  return { synced: channels.length + topics.length - failed.length, failed }
 })

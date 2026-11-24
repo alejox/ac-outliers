@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createError } from 'h3'
-import type { Channel, PreviousReading, Video } from '~~/shared/outliers'
+import type { Channel, PreviousReading, ScoredVideo, Topic, Video } from '~~/shared/outliers'
 
 /** Los datos de YouTube que no se refrescan en este plazo se borran (política de la API). */
 const STALE_AFTER_DAYS = 30
@@ -191,4 +191,60 @@ export async function dbSaveChannelVideos(channelId: string, videos: Video[]): P
 
   const { error: syncError } = await db().from('channels').update({ last_synced_at: nowIso }).eq('id', channelId)
   check(syncError, 'marcar el canal como actualizado')
+}
+
+// Temas (tendencias)
+
+export interface TopicResults {
+  channels: Channel[]
+  videos: ScoredVideo[]
+}
+
+const toTopic = (r: any): Topic => ({
+  id: r.id,
+  query: r.query,
+  categoryId: r.category_id,
+  language: r.language,
+  days: r.days,
+  fetchedAt: r.fetched_at,
+})
+
+/** Temas con sus resultados guardados, del más antiguo al más nuevo. */
+export async function dbListTopics(): Promise<(Topic & { results: TopicResults | null })[]> {
+  const { data, error } = await db().from('topics').select('*').order('created_at')
+  check(error, 'leer los temas')
+  return (data ?? []).map((r) => ({ ...toTopic(r), results: r.results ?? null }))
+}
+
+export async function dbGetTopic(id: string): Promise<Topic | null> {
+  const { data, error } = await db()
+    .from('topics')
+    .select('id, query, category_id, language, days, fetched_at')
+    .eq('id', id)
+    .maybeSingle()
+  check(error, 'leer el tema')
+  return data ? toTopic(data) : null
+}
+
+export async function dbCreateTopic(topic: Omit<Topic, 'id' | 'fetchedAt'>): Promise<Topic> {
+  const { data, error } = await db()
+    .from('topics')
+    .upsert(
+      { query: topic.query, category_id: topic.categoryId, language: topic.language, days: topic.days },
+      { onConflict: 'query,category_id,language' },
+    )
+    .select('id, query, category_id, language, days, fetched_at')
+    .single()
+  check(error, 'guardar el tema')
+  return toTopic(data)
+}
+
+export async function dbSaveTopicResults(id: string, results: TopicResults): Promise<void> {
+  const { error } = await db().from('topics').update({ results, fetched_at: new Date().toISOString() }).eq('id', id)
+  check(error, 'guardar los resultados del tema')
+}
+
+export async function dbDeleteTopic(id: string): Promise<void> {
+  const { error } = await db().from('topics').delete().eq('id', id)
+  check(error, 'quitar el tema')
 }

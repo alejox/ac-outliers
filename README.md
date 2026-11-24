@@ -47,6 +47,9 @@ Las tres claves se usan solo en el servidor; nunca llegan al navegador.
 
 Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de vidIQ:
 
+- **Tendencias** (la pantalla de inicio): sigues hasta 8 temas, con palabra clave, categoría o ambas, y la
+  app guarda los outliers de cada uno entre lo publicado en los últimos 30 días. Se refrescan una vez al
+  día, así que abrir la pestaña no gasta cuota. Sin temas, muestra lo que más rápido sube en tus canales.
 - **Tus canales**: ranking de los videos de los canales que sigues. Filtra por formato, fecha, score,
   palabras del título, tamaño del canal, vistas mínimas, duración y categoría de YouTube. Ordena por
   score, vistas por hora, vistas totales, interacción o fecha. Nada de esto gasta cuota.
@@ -95,8 +98,9 @@ La cuota gratuita es de 10.000 unidades diarias.
 | Agregar un canal | 5 unidades |
 | Actualizar un canal | 5 unidades |
 | Descubrir | 100 de la búsqueda + 2 por cada canal encontrado (unas 150) |
+| Refrescar un tema de Tendencias | Lo mismo que una búsqueda (unas 150), una vez al día |
 
-Con la cuota gratuita alcanzan unas 60 búsquedas al día.
+Con la cuota gratuita alcanzan unas 60 búsquedas al día. Ocho temas gastan unas 1.200 unidades diarias.
 
 ## Historial
 
@@ -126,7 +130,8 @@ Esa cadena da acceso total a la base de datos: solo va en el secreto de GitHub, 
 
 1. Sube el proyecto a GitHub e impórtalo en Vercel.
 2. Agrega las tres variables de entorno y `NUXT_APP_PASSWORD` con una contraseña larga.
-3. Opcional: define `CRON_SECRET` para activar la actualización diaria (`vercel.json`, 9:00 UTC).
+3. Define `CRON_SECRET` para activar la actualización diaria de canales y temas (`vercel.json`, 9:00 UTC).
+   Sin ella, todo se actualiza solo cuando pulsas "Actualizar datos".
 
 **Contraseña**: con `NUXT_APP_PASSWORD` definida, la app pide esa contraseña antes de mostrar o cambiar nada.
 Sin ella, cualquiera con el enlace puede agregar canales y gastar tu cuota. Es una sola contraseña compartida,

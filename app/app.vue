@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import type { Channel, ScoredVideo } from '~~/shared/outliers'
+import type { Channel, ScoredVideo, Topic } from '~~/shared/outliers'
 import { CATEGORY_OPTIONS, categoryName } from '~~/shared/categories'
 import { channelStats } from '~~/shared/channel-stats'
 import { applyFilters, defaultFilters, topWords } from '~~/shared/filters'
 
-type Mode = 'following' | 'discover' | 'channels'
+type Mode = 'trends' | 'following' | 'discover' | 'channels'
 type FoundChannel = Channel & { followed: boolean }
+type TrendTopic = Topic & { count: number }
+type TrendVideo = ScoredVideo & { topicIds: string[] }
 
 const { data, error: loadError, refresh } = await useFetch('/api/outliers')
+const { data: trendData, refresh: refreshTrends } = await useFetch('/api/trends')
 
 const channels = computed<Channel[]>(() => data.value?.channels ?? [])
 const videos = computed<ScoredVideo[]>(() => data.value?.videos ?? [])
@@ -16,7 +19,7 @@ const isOpen = computed(() => data.value?.open ?? false)
 const needsLogin = computed(() => loadError.value?.statusCode === 401)
 const channelById = computed(() => new Map(channels.value.map((c) => [c.id, c])))
 
-const mode = ref<Mode>('following')
+const mode = ref<Mode>('trends')
 const view = ref<'list' | 'grid'>('list')
 const messageOf = (err: any) => err?.data?.message ?? 'Algo falló. Vuelve a intentar.'
 
@@ -52,6 +55,72 @@ function showChannel(channelId: string) {
   mode.value = 'following'
 }
 
+// Tendencias: lo que está pegando en los temas que sigues
+const topics = computed<TrendTopic[]>(() => trendData.value?.topics ?? [])
+const trendVideos = computed<TrendVideo[]>(() => trendData.value?.videos ?? [])
+const trendChannels = computed<FoundChannel[]>(() => trendData.value?.channels ?? [])
+const trendChannelById = computed(() => new Map(trendChannels.value.map((c) => [c.id, c])))
+const trendFilters = ref(defaultFilters({ periodDays: 0, minScore: 0 }))
+const onlyTopic = ref<string | null>(null)
+
+const trendResults = computed(() =>
+  applyFilters(
+    onlyTopic.value ? trendVideos.value.filter((v) => v.topicIds.includes(onlyTopic.value!)) : trendVideos.value,
+    trendFilters.value,
+    subscribersOf(trendChannels.value),
+  ),
+)
+const trendCategories = computed(() => categoriesOf(trendVideos.value))
+const topicLabel = (t: { query: string; categoryId: string }) =>
+  [t.query, t.categoryId && categoryName(t.categoryId)].filter(Boolean).join(' en ')
+const trendSummary = computed(() => {
+  const topic = topics.value.find((t) => t.id === onlyTopic.value)
+  const where = topic ? `de “${topicLabel(topic)}”` : `de ${countOf(topics.value.length, 'tema', 'temas')}`
+  return `${countOf(trendResults.value.length, 'video', 'videos')} ${where}`
+})
+
+/** Sin temas todavía: lo que más rápido suma vistas entre lo reciente de tus canales. */
+const rising = computed(() =>
+  applyFilters(
+    videos.value,
+    defaultFilters({ format: 'all', periodDays: 30, minScore: 0, sort: 'pace' }),
+    subscribersOf(channels.value),
+  ).slice(0, 12),
+)
+
+const newTopic = reactive({ query: '', category: '' })
+const topicBusy = ref(false)
+const topicError = ref('')
+const canAddTopic = computed(() => newTopic.query.trim().length >= 2 || newTopic.category !== '')
+
+async function addTopic() {
+  if (!canAddTopic.value || topicBusy.value) return
+  topicBusy.value = true
+  topicError.value = ''
+  try {
+    await $fetch('/api/topics', { method: 'POST', body: { query: newTopic.query, category: newTopic.category } })
+    newTopic.query = ''
+    newTopic.category = ''
+    await refreshTrends()
+  } catch (err) {
+    topicError.value = messageOf(err)
+  } finally {
+    topicBusy.value = false
+  }
+}
+
+async function removeTopic(topic: TrendTopic) {
+  if (topicBusy.value) return
+  topicError.value = ''
+  try {
+    await $fetch(`/api/topics/${topic.id}`, { method: 'DELETE' })
+    if (onlyTopic.value === topic.id) onlyTopic.value = null
+    await refreshTrends()
+  } catch (err) {
+    topicError.value = messageOf(err)
+  }
+}
+
 // Comparación de canales
 const stats = computed(() => channelStats(channels.value, videos.value))
 
@@ -68,7 +137,7 @@ async function addChannel() {
   try {
     const res = await $fetch('/api/channels', { method: 'POST', body: { input: newChannel.value } })
     newChannel.value = ''
-    await refresh()
+    await Promise.all([refresh(), refreshTrends()])
     notice.value = { kind: 'ok', text: `Agregaste ${res.channel.title} con ${res.videos} videos.` }
   } catch (err) {
     notice.value = { kind: 'error', text: messageOf(err) }
@@ -85,28 +154,37 @@ async function removeChannel(channel: Channel) {
     if (onlyChannel.value === channel.id) onlyChannel.value = null
     const found = discovered.value?.channels.find((c) => c.id === channel.id)
     if (found) found.followed = false
-    await refresh()
+    await Promise.all([refresh(), refreshTrends()])
     notice.value = { kind: 'ok', text: `Quitaste ${channel.title}.` }
   } catch (err) {
     notice.value = { kind: 'error', text: messageOf(err) }
   }
 }
 
+/** Los temas se vuelven a buscar como mucho una vez cada tantas horas: cada búsqueda gasta cuota. */
+const TOPIC_STALE_HOURS = 20
+
 async function updateAll() {
-  if (busy.value || channels.value.length === 0) return
+  if (busy.value) return
   busy.value = 'sync'
   notice.value = null
   const list = [...channels.value]
+  const staleBefore = Date.now() - TOPIC_STALE_HOURS * 3_600_000
+  const stale = topics.value.filter((t) => !t.fetchedAt || new Date(t.fetchedAt).getTime() < staleBefore)
   try {
     for (const [i, channel] of list.entries()) {
-      progress.value = `Actualizando ${i + 1} de ${list.length}`
+      progress.value = `Actualizando canal ${i + 1} de ${list.length}`
       await $fetch(`/api/channels/${channel.id}/sync`, { method: 'POST' })
+    }
+    for (const [i, topic] of stale.entries()) {
+      progress.value = `Actualizando tema ${i + 1} de ${stale.length}`
+      await $fetch(`/api/topics/${topic.id}/refresh`, { method: 'POST' })
     }
     notice.value = { kind: 'ok', text: 'Datos actualizados.' }
   } catch (err) {
     notice.value = { kind: 'error', text: messageOf(err) }
   } finally {
-    await refresh()
+    await Promise.all([refresh(), refreshTrends()])
     busy.value = null
     progress.value = ''
   }
@@ -152,16 +230,20 @@ async function searchYouTube() {
   }
 }
 
-async function followChannel(channel: FoundChannel) {
+async function followChannel(channelId: string) {
   if (following.value) return
-  following.value = channel.id
+  following.value = channelId
   searchError.value = ''
+  topicError.value = ''
   try {
-    await $fetch('/api/channels', { method: 'POST', body: { input: channel.id } })
-    channel.followed = true
-    await refresh()
+    await $fetch('/api/channels', { method: 'POST', body: { input: channelId } })
+    const found = discovered.value?.channels.find((c) => c.id === channelId)
+    if (found) found.followed = true
+    await Promise.all([refresh(), refreshTrends()])
   } catch (err) {
-    searchError.value = messageOf(err)
+    const message = messageOf(err)
+    if (mode.value === 'trends') topicError.value = message
+    else searchError.value = message
   } finally {
     following.value = null
   }
@@ -179,7 +261,7 @@ async function logIn() {
   try {
     await $fetch('/api/login', { method: 'POST', body: { password: password.value } })
     password.value = ''
-    await refresh()
+    await Promise.all([refresh(), refreshTrends()])
   } catch (err) {
     loginError.value = messageOf(err)
   } finally {
@@ -223,7 +305,7 @@ async function logIn() {
       <div class="section-head">
         <h2 id="channels-title">Canales que sigues</h2>
         <button
-          v-if="channels.length > 0 && !isDemo"
+          v-if="(channels.length > 0 || topics.length > 0) && !isDemo"
           class="button button-quiet"
           type="button"
           :disabled="busy !== null"
@@ -290,13 +372,95 @@ async function logIn() {
       <h2 id="ranking-title" class="sr-only">Videos y canales</h2>
 
       <div class="modes" role="group" aria-label="Sección">
+        <button type="button" :aria-pressed="mode === 'trends'" @click="mode = 'trends'">Tendencias</button>
         <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
         <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
         <button type="button" :aria-pressed="mode === 'channels'" @click="mode = 'channels'">Comparar canales</button>
       </div>
 
+      <!-- Tendencias: temas que sigues en todo YouTube -->
+      <template v-if="mode === 'trends'">
+        <template v-if="!isDemo">
+          <form class="discover" @submit.prevent="addTopic">
+            <label class="field field-text">
+              <span>Tema que quieres seguir</span>
+              <input v-model="newTopic.query" type="search" placeholder="plugins de OBS" autocomplete="off" :disabled="topicBusy" />
+            </label>
+            <label class="field">
+              <span>Categoría</span>
+              <select v-model="newTopic.category" :disabled="topicBusy">
+                <option value="">Todas</option>
+                <option v-for="c in CATEGORY_OPTIONS" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </label>
+            <button class="button" type="submit" :disabled="topicBusy || !canAddTopic">
+              {{ topicBusy ? 'Buscando' : 'Seguir tema' }}
+            </button>
+          </form>
+          <p class="hint">
+            Cada tema se busca en todo YouTube entre lo publicado en los últimos 30 días y se refresca una vez al día.
+            Gasta unas 150 unidades de cuota por refresco; abrir esta pestaña no gasta nada.
+          </p>
+          <p v-if="topicError" class="notice notice-error" role="alert">{{ topicError }}</p>
+
+          <ul v-if="topics.length > 0" class="chips topics">
+            <li v-for="t in topics" :key="t.id" class="chip" :class="{ 'chip-on': onlyTopic === t.id }">
+              <button
+                class="chip-main chip-plain"
+                type="button"
+                :aria-pressed="onlyTopic === t.id"
+                :title="onlyTopic === t.id ? 'Ver todos los temas' : `Ver solo ${topicLabel(t)}`"
+                @click="onlyTopic = onlyTopic === t.id ? null : t.id"
+              >
+                <span class="chip-name">{{ topicLabel(t) }}</span>
+                <span class="chip-subs">{{ t.count }}</span>
+              </button>
+              <button class="chip-remove" type="button" :aria-label="`Dejar de seguir ${topicLabel(t)}`" :disabled="topicBusy" @click="removeTopic(t)">
+                <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+                  <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </button>
+            </li>
+          </ul>
+        </template>
+
+        <template v-if="trendVideos.length > 0">
+          <FilterBar v-model="trendFilters" :categories="trendCategories" />
+          <VideoResults
+            v-if="trendResults.length > 0"
+            v-model:view="view"
+            :videos="trendResults"
+            :channels="trendChannelById"
+            :summary="trendSummary"
+          >
+            <template #action="{ video }">
+              <FollowButton :channel="trendChannelById.get(video.channelId)" :busy-id="following" @follow="followChannel" />
+            </template>
+          </VideoResults>
+          <div v-else class="empty">
+            <p class="empty-title">Ningún video cumple estos filtros</p>
+            <p>Quita algún filtro o elige otro tema.</p>
+          </div>
+        </template>
+
+        <template v-else-if="rising.length > 0">
+          <h3 class="subhead">En alza en tus canales</h3>
+          <VideoResults
+            v-model:view="view"
+            :videos="rising"
+            :channels="channelById"
+            summary="Lo que más rápido suma vistas entre lo publicado en los últimos 30 días"
+          />
+        </template>
+
+        <div v-else-if="!loadError" class="empty">
+          <p class="empty-title">Todavía no hay tendencias</p>
+          <p>Sigue un tema arriba para ver qué está pegando en tu nicho, o agrega canales para ver los suyos.</p>
+        </div>
+      </template>
+
       <!-- Ranking de los canales que sigues -->
-      <template v-if="mode === 'following'">
+      <template v-else-if="mode === 'following'">
         <FilterBar v-model="filters" :categories="categories" show-format show-period />
 
         <p v-if="words.length > 0" class="words">
@@ -386,18 +550,7 @@ async function logIn() {
               :summary="foundSummary"
             >
               <template #action="{ video }">
-                <template v-if="foundChannelById.get(video.channelId)">
-                  <span v-if="foundChannelById.get(video.channelId)!.followed" class="followed">Ya sigues este canal</span>
-                  <button
-                    v-else
-                    class="button button-quiet button-small"
-                    type="button"
-                    :disabled="following !== null"
-                    @click="followChannel(foundChannelById.get(video.channelId)!)"
-                  >
-                    {{ following === video.channelId ? 'Agregando' : 'Seguir canal' }}
-                  </button>
-                </template>
+                <FollowButton :channel="foundChannelById.get(video.channelId)" :busy-id="following" @follow="followChannel" />
               </template>
             </VideoResults>
 
