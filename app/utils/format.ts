@@ -1,0 +1,67 @@
+import type { ScoredVideo } from '~~/shared/outliers'
+
+export const compact = new Intl.NumberFormat('es', { notation: 'compact', maximumFractionDigits: 1 })
+const relative = new Intl.RelativeTimeFormat('es', { numeric: 'always' })
+
+export function formatScore(score: number) {
+  const digits = score < 10 && !Number.isInteger(score) ? 1 : 0
+  return `${score.toLocaleString('es', { minimumFractionDigits: digits, maximumFractionDigits: digits })}×`
+}
+
+export function periodLabel(days: number) {
+  return days === 365 ? 'el último año' : `los últimos ${days} días`
+}
+
+export function formatAge(days: number) {
+  if (days < 1) return 'hoy'
+  if (days < 30) return relative.format(-Math.floor(days), 'day')
+  if (days < 365) return relative.format(-Math.floor(days / 30), 'month')
+  return relative.format(-Math.floor(days / 365), 'year')
+}
+
+export function formatDuration(total: number) {
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = String(total % 60).padStart(2, '0')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`
+}
+
+export function scoreTier(score: number | null) {
+  if (score === null) return 'none'
+  if (score >= 10) return 'extreme'
+  if (score >= 3) return 'high'
+  if (score >= 1.5) return 'above'
+  return 'normal'
+}
+
+// La regla va de 0,25× a 32× en escala logarítmica; lo normal (1×) cae al 28,6 %.
+const STRIP_MIN = -2
+const STRIP_SPAN = 7
+export const NORMAL_AT = (-STRIP_MIN / STRIP_SPAN) * 100
+
+export function stripPosition(score: number) {
+  const clamped = Math.min(Math.max(Math.log2(Math.max(score, 0.01)), STRIP_MIN), STRIP_MIN + STRIP_SPAN)
+  return ((clamped - STRIP_MIN) / STRIP_SPAN) * 100
+}
+
+export function stripFill(score: number) {
+  const pos = stripPosition(score)
+  return { left: `${Math.min(pos, NORMAL_AT)}%`, width: `${Math.abs(pos - NORMAL_AT)}%` }
+}
+
+/** Color estable para canales sin imagen. */
+export function hueOf(id: string) {
+  let h = 0
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return (h * 137) % 360
+}
+
+export const videoUrl = (v: ScoredVideo) =>
+  v.isShort ? `https://www.youtube.com/shorts/${v.id}` : `https://www.youtube.com/watch?v=${v.id}`
+
+/** Minúsculas y sin tildes, para que "codigo" encuentre "Código". */
+export const normalizeText = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()

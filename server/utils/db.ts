@@ -19,7 +19,21 @@ function db(): SupabaseClient {
 }
 
 function check(error: { message: string } | null, action: string) {
-  if (error) throw createError({ statusCode: 500, message: `Supabase no pudo ${action}: ${error.message}` })
+  if (!error) return
+  const raw = error.message ?? ''
+  let reason = raw.length > 200 ? `${raw.slice(0, 200)}…` : raw
+  if (/<!doctype|<html/i.test(raw)) {
+    // Respondió una página web: la URL no es la de la API del proyecto.
+    reason = 'NUXT_SUPABASE_URL no es la URL del proyecto. Debe tener la forma https://xxxx.supabase.co.'
+  } else if (/permission denied/i.test(raw)) {
+    reason =
+      'el servidor no tiene permiso sobre las tablas. Aplica las migraciones de supabase/migrations y revisa que NUXT_SUPABASE_SECRET_KEY sea la clave secreta, no la pública.'
+  } else if (/does not exist|could not find the table|schema cache/i.test(raw)) {
+    reason = 'faltan las tablas. Aplica las migraciones de supabase/migrations.'
+  } else if (/invalid api key|jwt/i.test(raw)) {
+    reason = 'la clave no es válida. Revisa NUXT_SUPABASE_SECRET_KEY.'
+  }
+  throw createError({ statusCode: 500, message: `Supabase no pudo ${action}: ${reason}` })
 }
 
 const toChannel = (r: any): Channel => ({

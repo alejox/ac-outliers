@@ -29,7 +29,8 @@ Abre http://localhost:3000.
 ### 2. Base de datos en Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com/).
-2. En **SQL Editor**, pega y ejecuta `supabase/schema.sql`.
+2. En **SQL Editor**, pega y ejecuta el archivo de `supabase/migrations/`. Si configuras las
+   [migraciones automáticas](#migraciones-automáticas), este paso lo hace GitHub por ti.
 3. En **Project Settings > API**, copia la URL del proyecto y la clave secreta (`sb_secret_...` o `service_role`).
 
 ### 3. Variables de entorno
@@ -41,6 +42,13 @@ cp .env.example .env
 Llena `NUXT_YOUTUBE_API_KEY`, `NUXT_SUPABASE_URL` y `NUXT_SUPABASE_SECRET_KEY`, y reinicia `npm run dev`.
 
 Las tres claves se usan solo en el servidor; nunca llegan al navegador.
+
+## Buscar
+
+- **En tus canales**: el campo "Buscar en títulos" filtra el ranking por palabras, sin gastar cuota.
+- **Descubrir por tema**: busca videos largos en todo YouTube, los puntúa contra lo normal de su canal
+  y te deja seguir los canales que valgan la pena. Los resultados no se guardan: repetir una búsqueda
+  vuelve a gastar cuota.
 
 ## Cómo se calcula
 
@@ -60,13 +68,32 @@ La cuota gratuita es de 10.000 unidades diarias.
 | --- | --- |
 | Agregar un canal | 5 unidades |
 | Actualizar un canal | 4 unidades |
+| Descubrir por tema | 100 de la búsqueda + 2 por cada canal encontrado (unas 150) |
 
-La app nunca usa la búsqueda de YouTube, que cuesta 100 unidades por consulta.
+Con la cuota gratuita alcanzan unas 60 búsquedas por tema al día.
 
 ## Historial de vistas
 
 Cada actualización guarda una foto de las vistas del día en `video_snapshots`. La interfaz todavía no la muestra;
 es la base para la gráfica de crecimiento por video.
+
+## Migraciones automáticas
+
+Los cambios de base de datos viven en `supabase/migrations/`. El flujo
+`.github/workflows/supabase-migraciones.yml` aplica los archivos nuevos cada vez que se sube un cambio
+de esa carpeta a `main`, así nadie tiene que pegar SQL a mano.
+
+Para activarlo, una sola vez:
+
+1. En Supabase, abre **Connect** y copia la cadena de conexión **Session pooler** (formato URI).
+   Reemplaza `[YOUR-PASSWORD]` por la contraseña de la base de datos. Si la contraseña tiene símbolos
+   como `@`, `#` o `/`, cámbiala por una solo con letras y números (Database > Settings) para no tener
+   que codificarla.
+2. En GitHub, ve a **Settings > Secrets and variables > Actions > New repository secret**.
+   Nombre: `SUPABASE_DB_URL`. Valor: la cadena completa.
+3. En la pestaña **Actions**, abre "Migraciones de Supabase" y pulsa **Run workflow** para aplicar lo pendiente.
+
+Esa cadena da acceso total a la base de datos: solo va en el secreto de GitHub, nunca en el código ni en chats.
 
 ## Desplegar en Vercel
 
@@ -88,9 +115,9 @@ npm test
 
 ```
 app/                 Interfaz (Vue)
-server/api/          Rutas: outliers, canales, actualización
+server/api/          Rutas: outliers, canales, búsqueda, actualización
 server/utils/        Cliente de YouTube, Supabase, datos demo
 shared/              Cálculo del score y lectura de enlaces de canal
-supabase/schema.sql  Tablas
+supabase/migrations  Cambios de la base de datos, en orden
 tests/               Tests del cálculo
 ```

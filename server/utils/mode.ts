@@ -19,6 +19,12 @@ export function appMode(): 'demo' | 'live' {
       message: `Falta configurar ${missing.join(' y ')} en el archivo .env.`,
     })
   }
+  if (!/^https?:\/\/[^/]+\/?$/.test(supabaseUrl) || /(^|\.)supabase\.com\/?$/.test(new URL(supabaseUrl).hostname)) {
+    throw createError({
+      statusCode: 500,
+      message: 'NUXT_SUPABASE_URL no es la URL del proyecto. Debe tener la forma https://xxxx.supabase.co, sin nada después.',
+    })
+  }
   return 'live'
 }
 

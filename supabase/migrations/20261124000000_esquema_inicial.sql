@@ -1,5 +1,6 @@
 -- AC Outliers: esquema inicial.
--- Pégalo completo en Supabase > SQL Editor y ejecútalo una vez.
+-- Se puede ejecutar más de una vez sin dañar nada.
+-- Lo aplica solo el flujo de GitHub (ver README) o puedes pegarlo en Supabase > SQL Editor.
 
 create table if not exists channels (
   id               text primary key,          -- ID del canal en YouTube (UC...)
@@ -40,3 +41,10 @@ create table if not exists video_snapshots (
 alter table channels        enable row level security;
 alter table videos          enable row level security;
 alter table video_snapshots enable row level security;
+
+-- Los proyectos nuevos de Supabase ya no dan acceso automático a las tablas por la API.
+-- Solo el rol del servidor (clave secreta) recibe permiso; las claves públicas no ven nada.
+grant usage on schema public to service_role;
+grant select, insert, update, delete
+  on table public.channels, public.videos, public.video_snapshots
+  to service_role;

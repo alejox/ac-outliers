@@ -1,0 +1,34 @@
+name: Migraciones de Supabase
+
+# Aplica en la base de datos los archivos nuevos de supabase/migrations al subir a main.
+# Necesita el secreto SUPABASE_DB_URL en el repo (ver README).
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/migrations/**']
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-migraciones
+  cancel-in-progress: false
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Aplicar migraciones pendientes
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Falta el secreto SUPABASE_DB_URL en el repo."
+            exit 1
+          fi
+          supabase db push --remote="$SUPABASE_DB_URL"

@@ -3,6 +3,8 @@ import type { Channel, ScoredVideo } from '~~/shared/outliers'
 
 type Format = 'long' | 'short' | 'all'
 type Sort = 'score' | 'velocity' | 'views'
+type Mode = 'following' | 'discover'
+type FoundChannel = Channel & { followed: boolean }
 
 const PAGE_SIZE = 40
 
@@ -15,20 +17,29 @@ const isOpen = computed(() => data.value?.open ?? false)
 const needsLogin = computed(() => loadError.value?.statusCode === 401)
 const channelById = computed(() => new Map(channels.value.map((c) => [c.id, c])))
 
-// Filtros
+const mode = ref<Mode>('following')
+const messageOf = (err: any) => err?.data?.message ?? 'Algo falló. Vuelve a intentar.'
+
+// Ranking de los canales que sigues
 const format = ref<Format>('long')
 const periodDays = ref(90)
 const minScore = ref(2)
 const sort = ref<Sort>('score')
 const onlyChannel = ref<string | null>(null)
+const titleFilter = ref('')
 const shown = ref(PAGE_SIZE)
 
 const results = computed(() => {
+  const words = normalizeText(titleFilter.value).split(/\s+/).filter(Boolean)
   const list = videos.value.filter((v) => {
     if (format.value !== 'all' && v.isShort !== (format.value === 'short')) return false
     if (periodDays.value > 0 && v.ageDays > periodDays.value) return false
     if (onlyChannel.value && v.channelId !== onlyChannel.value) return false
     if (minScore.value > 0 && (v.score === null || v.score < minScore.value)) return false
+    if (words.length > 0) {
+      const title = normalizeText(v.title)
+      if (!words.every((word) => title.includes(word))) return false
+    }
     return true
   })
   const key: Record<Sort, (v: ScoredVideo) => number> = {
@@ -39,23 +50,22 @@ const results = computed(() => {
   return list.sort((a, b) => key[sort.value](b) - key[sort.value](a))
 })
 
-watch([format, periodDays, minScore, sort, onlyChannel], () => (shown.value = PAGE_SIZE))
+watch([format, periodDays, minScore, sort, onlyChannel, titleFilter], () => (shown.value = PAGE_SIZE))
 
 const summary = computed(() => {
   const n = results.value.length
   const what = n === 1 ? '1 video' : `${n} videos`
+  const about = titleFilter.value.trim() ? ` con “${titleFilter.value.trim()}” en el título` : ''
   const over = minScore.value > 0 ? ` por encima de ${formatScore(minScore.value)}` : ''
   const when = periodDays.value > 0 ? ` publicados en ${periodLabel(periodDays.value)}` : ''
-  return `${what}${over}${when}`
+  return `${what}${about}${over}${when}`
 })
 
-// Acciones
+// Canales
 const newChannel = ref('')
 const busy = ref<'add' | 'sync' | null>(null)
 const progress = ref('')
 const notice = ref<{ kind: 'ok' | 'error'; text: string } | null>(null)
-
-const messageOf = (err: any) => err?.data?.message ?? 'Algo falló. Vuelve a intentar.'
 
 async function addChannel() {
   if (!newChannel.value.trim() || busy.value) return
@@ -79,6 +89,8 @@ async function removeChannel(channel: Channel) {
   try {
     await $fetch(`/api/channels/${channel.id}`, { method: 'DELETE' })
     if (onlyChannel.value === channel.id) onlyChannel.value = null
+    const found = discovered.value?.channels.find((c) => c.id === channel.id)
+    if (found) found.followed = false
     await refresh()
     notice.value = { kind: 'ok', text: `Quitaste ${channel.title}.` }
   } catch (err) {
@@ -106,6 +118,51 @@ async function updateAll() {
   }
 }
 
+// Descubrir por tema
+const topic = ref('')
+const topicDays = ref(90)
+const searching = ref(false)
+const searchError = ref('')
+const searchedTopic = ref('')
+const discovered = ref<{ channels: FoundChannel[]; videos: ScoredVideo[]; quotaUsed: number } | null>(null)
+const following = ref<string | null>(null)
+
+const foundChannelById = computed(() => new Map((discovered.value?.channels ?? []).map((c) => [c.id, c])))
+const discoveredVideos = computed(() =>
+  [...(discovered.value?.videos ?? [])].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)),
+)
+const discoveredChannelCount = computed(() => new Set(discoveredVideos.value.map((v) => v.channelId)).size)
+
+async function searchTopic() {
+  const q = topic.value.trim()
+  if (q.length < 2 || searching.value) return
+  searching.value = true
+  searchError.value = ''
+  try {
+    discovered.value = await $fetch('/api/search', { query: { q, days: topicDays.value } })
+    searchedTopic.value = q
+  } catch (err) {
+    searchError.value = messageOf(err)
+  } finally {
+    searching.value = false
+  }
+}
+
+async function followChannel(channel: FoundChannel) {
+  if (following.value) return
+  following.value = channel.id
+  searchError.value = ''
+  try {
+    await $fetch('/api/channels', { method: 'POST', body: { input: channel.id } })
+    channel.followed = true
+    await refresh()
+  } catch (err) {
+    searchError.value = messageOf(err)
+  } finally {
+    following.value = null
+  }
+}
+
 // Entrada con contraseña
 const password = ref('')
 const loginError = ref('')
@@ -125,63 +182,6 @@ async function logIn() {
     loggingIn.value = false
   }
 }
-
-// Formato
-const compact = new Intl.NumberFormat('es', { notation: 'compact', maximumFractionDigits: 1 })
-const relative = new Intl.RelativeTimeFormat('es', { numeric: 'always' })
-
-function formatScore(score: number) {
-  const digits = score < 10 && !Number.isInteger(score) ? 1 : 0
-  return `${score.toLocaleString('es', { minimumFractionDigits: digits, maximumFractionDigits: digits })}×`
-}
-
-function periodLabel(days: number) {
-  return days === 365 ? 'el último año' : `los últimos ${days} días`
-}
-
-function formatAge(days: number) {
-  if (days < 1) return 'hoy'
-  if (days < 30) return relative.format(-Math.floor(days), 'day')
-  if (days < 365) return relative.format(-Math.floor(days / 30), 'month')
-  return relative.format(-Math.floor(days / 365), 'year')
-}
-
-function formatDuration(total: number) {
-  const h = Math.floor(total / 3600)
-  const m = Math.floor((total % 3600) / 60)
-  const s = String(total % 60).padStart(2, '0')
-  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`
-}
-
-function tier(score: number | null) {
-  if (score === null) return 'none'
-  if (score >= 10) return 'extreme'
-  if (score >= 3) return 'high'
-  if (score >= 1.5) return 'above'
-  return 'normal'
-}
-
-// La regla va de 0,25× a 32× en escala logarítmica; lo normal (1×) cae al 28,6 %.
-const STRIP_MIN = -2
-const STRIP_SPAN = 7
-const NORMAL_AT = (-STRIP_MIN / STRIP_SPAN) * 100
-function stripPosition(score: number) {
-  const clamped = Math.min(Math.max(Math.log2(Math.max(score, 0.01)), STRIP_MIN), STRIP_MIN + STRIP_SPAN)
-  return ((clamped - STRIP_MIN) / STRIP_SPAN) * 100
-}
-function stripFill(score: number) {
-  const pos = stripPosition(score)
-  return { left: `${Math.min(pos, NORMAL_AT)}%`, width: `${Math.abs(pos - NORMAL_AT)}%` }
-}
-
-function hueOf(id: string) {
-  let h = 0
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return (h * 137) % 360
-}
-
-const videoUrl = (v: ScoredVideo) =>
-  v.isShort ? `https://www.youtube.com/shorts/${v.id}` : `https://www.youtube.com/watch?v=${v.id}`
 </script>
 
 <template>
@@ -236,7 +236,12 @@ const videoUrl = (v: ScoredVideo) =>
             type="button"
             :aria-pressed="onlyChannel === c.id"
             :title="onlyChannel === c.id ? 'Ver todos los canales' : `Ver solo ${c.title}`"
-            @click="onlyChannel = onlyChannel === c.id ? null : c.id"
+            @click="
+              () => {
+                onlyChannel = onlyChannel === c.id ? null : c.id
+                mode = 'following'
+              }
+            "
           >
             <img v-if="c.thumbnailUrl" class="avatar" :src="c.thumbnailUrl" alt="" loading="lazy" />
             <span v-else class="avatar avatar-blank" :style="{ '--hue': hueOf(c.id) }" aria-hidden="true">
@@ -285,121 +290,157 @@ const videoUrl = (v: ScoredVideo) =>
     <section v-if="!needsLogin" class="ranking" aria-labelledby="ranking-title">
       <h2 id="ranking-title" class="sr-only">Ranking de videos</h2>
 
-      <div class="filters">
-        <div class="segmented" role="group" aria-label="Formato">
-          <button
-            v-for="option in [
-              { value: 'long', label: 'Videos largos' },
-              { value: 'short', label: 'Shorts' },
-              { value: 'all', label: 'Todo' },
-            ]"
-            :key="option.value"
-            type="button"
-            :aria-pressed="format === option.value"
-            @click="format = option.value as Format"
-          >
-            {{ option.label }}
-          </button>
+      <div v-if="!isDemo" class="modes" role="group" aria-label="Dónde buscar">
+        <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
+        <button type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir por tema</button>
+      </div>
+
+      <!-- Ranking de los canales que sigues -->
+      <template v-if="mode === 'following'">
+        <div class="filters">
+          <div class="segmented" role="group" aria-label="Formato">
+            <button
+              v-for="option in [
+                { value: 'long', label: 'Videos largos' },
+                { value: 'short', label: 'Shorts' },
+                { value: 'all', label: 'Todo' },
+              ]"
+              :key="option.value"
+              type="button"
+              :aria-pressed="format === option.value"
+              @click="format = option.value as Format"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+
+          <label class="field">
+            <span>Publicados en</span>
+            <select v-model.number="periodDays">
+              <option :value="7">7 días</option>
+              <option :value="30">30 días</option>
+              <option :value="90">90 días</option>
+              <option :value="365">1 año</option>
+              <option :value="0">Cualquier fecha</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Score mínimo</span>
+            <select v-model.number="minScore">
+              <option :value="0">Sin mínimo</option>
+              <option :value="1.5">1,5×</option>
+              <option :value="2">2×</option>
+              <option :value="3">3×</option>
+              <option :value="5">5×</option>
+              <option :value="10">10×</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Ordenar por</span>
+            <select v-model="sort">
+              <option value="score">Score</option>
+              <option value="velocity">Vistas por día</option>
+              <option value="views">Vistas totales</option>
+            </select>
+          </label>
+
+          <label class="field field-text">
+            <span>Buscar en títulos</span>
+            <input v-model="titleFilter" type="search" placeholder="OBS, Claude, tutorial" autocomplete="off" />
+          </label>
         </div>
 
-        <label class="field">
-          <span>Publicados en</span>
-          <select v-model.number="periodDays">
-            <option :value="7">7 días</option>
-            <option :value="30">30 días</option>
-            <option :value="90">90 días</option>
-            <option :value="365">1 año</option>
-            <option :value="0">Cualquier fecha</option>
-          </select>
-        </label>
+        <p v-if="results.length > 0" class="summary" aria-live="polite">{{ summary }}</p>
 
-        <label class="field">
-          <span>Score mínimo</span>
-          <select v-model.number="minScore">
-            <option :value="0">Sin mínimo</option>
-            <option :value="1.5">1,5×</option>
-            <option :value="2">2×</option>
-            <option :value="3">3×</option>
-            <option :value="5">5×</option>
-            <option :value="10">10×</option>
-          </select>
-        </label>
+        <ol v-if="results.length > 0" class="rows">
+          <VideoRow
+            v-for="v in results.slice(0, shown)"
+            :key="v.id"
+            :video="v"
+            :channel-title="channelById.get(v.channelId)?.title ?? ''"
+          />
+        </ol>
 
-        <label class="field">
-          <span>Ordenar por</span>
-          <select v-model="sort">
-            <option value="score">Score</option>
-            <option value="velocity">Vistas por día</option>
-            <option value="views">Vistas totales</option>
-          </select>
-        </label>
-      </div>
+        <button v-if="results.length > shown" class="button button-quiet more" type="button" @click="shown += PAGE_SIZE">
+          Ver {{ Math.min(PAGE_SIZE, results.length - shown) }} más
+        </button>
 
-      <p v-if="results.length > 0" class="summary" aria-live="polite">{{ summary }}</p>
+        <div v-if="results.length === 0 && !loadError" class="empty">
+          <template v-if="channels.length === 0">
+            <p class="empty-title">Todavía no sigues ningún canal</p>
+            <p>Agrega arriba los canales de tu nicho, o los tuyos, para ver qué videos se salieron de lo normal.</p>
+          </template>
+          <template v-else>
+            <p class="empty-title">Ningún video cumple estos filtros</p>
+            <p>Baja el score mínimo, amplía el periodo o borra el texto de búsqueda.</p>
+          </template>
+        </div>
+      </template>
 
-      <ol v-if="results.length > 0" class="rows">
-        <li v-for="v in results.slice(0, shown)" :key="v.id" class="row" :class="`tier-${tier(v.score)}`">
-          <a class="thumb" :class="{ 'thumb-short': v.isShort }" :href="videoUrl(v)" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">
-            <img v-if="v.thumbnailUrl" :src="v.thumbnailUrl" alt="" loading="lazy" />
-            <span v-else class="thumb-blank" :style="{ '--hue': hueOf(v.channelId) }">
-              {{ channelById.get(v.channelId)?.title.charAt(0) }}
-            </span>
-            <span class="duration">{{ v.isShort ? 'Short' : formatDuration(v.durationSeconds) }}</span>
-          </a>
+      <!-- Descubrir por tema -->
+      <template v-else>
+        <form class="discover" @submit.prevent="searchTopic">
+          <label class="field field-text">
+            <span>Tema</span>
+            <input v-model="topic" type="search" placeholder="plugins de OBS" autocomplete="off" :disabled="searching" />
+          </label>
+          <label class="field">
+            <span>Publicados en</span>
+            <select v-model.number="topicDays" :disabled="searching">
+              <option :value="7">7 días</option>
+              <option :value="30">30 días</option>
+              <option :value="90">90 días</option>
+              <option :value="365">1 año</option>
+              <option :value="0">Cualquier fecha</option>
+            </select>
+          </label>
+          <button class="button" type="submit" :disabled="searching || topic.trim().length < 2">
+            {{ searching ? 'Buscando' : 'Buscar en YouTube' }}
+          </button>
+        </form>
+        <p class="hint">
+          Busca videos largos en todo YouTube y los compara con lo normal de su canal. Cada búsqueda gasta unas 150
+          de las 10.000 unidades diarias de tu cuota.
+        </p>
+        <p v-if="searchError" class="notice notice-error" role="alert">{{ searchError }}</p>
 
-          <div class="info">
-            <h3>
-              <a :href="videoUrl(v)" target="_blank" rel="noopener">{{ v.title }}</a>
-            </h3>
-            <p class="byline">
-              {{ channelById.get(v.channelId)?.title }}
-              <span class="age">{{ formatAge(v.ageDays) }}</span>
-            </p>
-            <dl class="stats">
-              <div>
-                <dt>Vistas</dt>
-                <dd>{{ compact.format(v.views) }}</dd>
-              </div>
-              <div>
-                <dt>Lo normal</dt>
-                <dd>{{ v.baseline === null ? 'sin datos' : compact.format(v.baseline) }}</dd>
-              </div>
-              <div>
-                <dt>Por día</dt>
-                <dd>{{ compact.format(Math.round(v.viewsPerDay)) }}</dd>
-              </div>
-            </dl>
+        <template v-if="discovered">
+          <p v-if="discoveredVideos.length > 0" class="summary" aria-live="polite">
+            {{ discoveredVideos.length === 1 ? '1 video' : `${discoveredVideos.length} videos` }} sobre “{{ searchedTopic }}”
+            de {{ discoveredChannelCount === 1 ? '1 canal' : `${discoveredChannelCount} canales` }}. Gastó
+            {{ discovered.quotaUsed }} unidades.
+          </p>
+
+          <ol v-if="discoveredVideos.length > 0" class="rows">
+            <VideoRow
+              v-for="v in discoveredVideos"
+              :key="v.id"
+              :video="v"
+              :channel-title="foundChannelById.get(v.channelId)?.title ?? ''"
+            >
+              <template v-if="foundChannelById.get(v.channelId)" #default>
+                <span v-if="foundChannelById.get(v.channelId)!.followed" class="followed">Ya sigues este canal</span>
+                <button
+                  v-else
+                  class="button button-quiet button-small"
+                  type="button"
+                  :disabled="following !== null"
+                  @click="followChannel(foundChannelById.get(v.channelId)!)"
+                >
+                  {{ following === v.channelId ? 'Agregando' : 'Seguir canal' }}
+                </button>
+              </template>
+            </VideoRow>
+          </ol>
+
+          <div v-else class="empty">
+            <p class="empty-title">No hay videos largos sobre “{{ searchedTopic }}”</p>
+            <p>Prueba con otras palabras o amplía el periodo.</p>
           </div>
-
-          <div class="score">
-            <template v-if="v.score !== null">
-              <p class="score-value">{{ formatScore(v.score) }}</p>
-              <div class="strip" role="img" :aria-label="`${formatScore(v.score)} de lo normal en este canal`">
-                <span class="strip-fill" :style="stripFill(v.score)" />
-                <span class="strip-normal" :style="{ left: `${NORMAL_AT}%` }" />
-                <span class="strip-dot" :style="{ left: `${stripPosition(v.score)}%` }" />
-              </div>
-              <p class="strip-caption" :style="{ paddingLeft: `${NORMAL_AT}%` }" aria-hidden="true"><span>normal</span></p>
-            </template>
-            <p v-else class="score-missing">Pocos videos para comparar</p>
-          </div>
-        </li>
-      </ol>
-
-      <button v-if="results.length > shown" class="button button-quiet more" type="button" @click="shown += PAGE_SIZE">
-        Ver {{ Math.min(PAGE_SIZE, results.length - shown) }} más
-      </button>
-
-      <div v-if="results.length === 0 && !loadError" class="empty">
-        <template v-if="channels.length === 0">
-          <p class="empty-title">Todavía no sigues ningún canal</p>
-          <p>Agrega arriba los canales de tu nicho, o los tuyos, para ver qué videos se salieron de lo normal.</p>
         </template>
-        <template v-else>
-          <p class="empty-title">Ningún video cumple estos filtros</p>
-          <p>Baja el score mínimo o amplía el periodo.</p>
-        </template>
-      </div>
+      </template>
     </section>
   </div>
 </template>

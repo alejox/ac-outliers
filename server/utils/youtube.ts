@@ -6,6 +6,8 @@ const API = 'https://www.googleapis.com/youtube/v3'
 
 /** Videos por formato que se traen en cada actualización (máximo 50 por llamada). */
 const VIDEOS_PER_FORMAT = 50
+/** Videos que trae cada búsqueda por tema. Más resultados son más canales que revisar y más cuota. */
+const SEARCH_RESULTS = 25
 
 const QUOTA_MESSAGE = 'Se agotó la cuota diaria de la API de YouTube. Se reinicia a medianoche, hora del Pacífico.'
 const KNOWN_ERRORS: Record<string, string> = {
@@ -48,7 +50,10 @@ export async function fetchChannel(ref: ChannelRef): Promise<Channel | null> {
     'id' in ref ? { id: ref.id } : 'handle' in ref ? { forHandle: ref.handle } : { forUsername: ref.username }
   const res = await yt<{ items?: any[] }>('channels', { part: 'snippet,statistics', ...selector })
   const item = res.items?.[0]
-  if (!item) return null
+  return item ? toChannel(item) : null
+}
+
+function toChannel(item: any): Channel {
   return {
     id: item.id,
     title: item.snippet?.title ?? item.id,
@@ -73,6 +78,29 @@ async function fetchPlaylistVideoIds(playlistId: string): Promise<string[]> {
     throw err
   }
 }
+
+/** Convierte un video de la API al formato de la app. null si no sirve para comparar. */
+function toVideo(item: any, isShort: boolean | null): Video | null {
+  const live = item.snippet?.liveBroadcastContent
+  if (live === 'live' || live === 'upcoming') return null
+  // Sin conteo de vistas público no hay nada que comparar.
+  if (item.statistics?.viewCount === undefined) return null
+  const durationSeconds = parseIsoDuration(item.contentDetails?.duration ?? '')
+  return {
+    id: item.id,
+    channelId: item.snippet?.channelId,
+    title: item.snippet?.title ?? '',
+    thumbnailUrl: pickThumb(item.snippet?.thumbnails),
+    publishedAt: item.snippet?.publishedAt,
+    durationSeconds,
+    isShort: isShort ?? (durationSeconds > 0 && durationSeconds <= 60),
+    views: Number(item.statistics.viewCount),
+    likes: toNumber(item.statistics.likeCount),
+    comments: toNumber(item.statistics.commentCount),
+  }
+}
+
+const isVideo = (v: Video | null): v is Video => v !== null
 
 async function fetchVideoDetails(ids: string[]): Promise<any[]> {
   const items: any[] = []
@@ -108,25 +136,47 @@ export async function fetchChannelVideos(channelId: string): Promise<Video[]> {
     shortSet = null
   }
 
-  const videos: Video[] = []
-  for (const item of await fetchVideoDetails(ids)) {
-    const live = item.snippet?.liveBroadcastContent
-    if (live === 'live' || live === 'upcoming') continue
-    // Sin conteo de vistas público no hay nada que comparar.
-    if (item.statistics?.viewCount === undefined) continue
-    const durationSeconds = parseIsoDuration(item.contentDetails?.duration ?? '')
-    videos.push({
-      id: item.id,
-      channelId,
-      title: item.snippet?.title ?? '',
-      thumbnailUrl: pickThumb(item.snippet?.thumbnails),
-      publishedAt: item.snippet?.publishedAt,
-      durationSeconds,
-      isShort: shortSet ? shortSet.has(item.id) : durationSeconds > 0 && durationSeconds <= 60,
-      views: Number(item.statistics.viewCount),
-      likes: toNumber(item.statistics.likeCount),
-      comments: toNumber(item.statistics.commentCount),
+  const items = await fetchVideoDetails(ids)
+  return items.map((item) => toVideo(item, shortSet ? shortSet.has(item.id) : null)).filter(isVideo)
+}
+
+/** Solo los últimos videos largos de un canal: lo mínimo para saber qué es normal en él. 2 unidades. */
+export async function fetchLongVideos(channelId: string): Promise<Video[]> {
+  const ids = await fetchPlaylistVideoIds(`UULF${channelId.slice(2)}`)
+  const items = await fetchVideoDetails(ids)
+  return items.map((item) => toVideo(item, false)).filter(isVideo)
+}
+
+/** Videos sueltos por ID, tratados como videos largos. 1 unidad por cada 50. */
+export async function fetchVideosByIds(ids: string[]): Promise<Video[]> {
+  const items = await fetchVideoDetails(ids)
+  return items.map((item) => toVideo(item, false)).filter(isVideo)
+}
+
+/** Datos básicos de varios canales a la vez. 1 unidad por cada 50. */
+export async function fetchChannelsByIds(ids: string[]): Promise<Channel[]> {
+  const channels: Channel[] = []
+  for (let i = 0; i < ids.length; i += 50) {
+    const res = await yt<{ items?: any[] }>('channels', {
+      part: 'snippet,statistics',
+      id: ids.slice(i, i + 50).join(','),
+      maxResults: 50,
     })
+    channels.push(...(res.items ?? []).map(toChannel))
   }
-  return videos
+  return channels
+}
+
+/** Busca videos por tema en todo YouTube. Es la llamada cara: 100 unidades. */
+export async function searchVideoIds(query: string, days: number): Promise<string[]> {
+  const params: Record<string, string | number> = {
+    part: 'id',
+    q: query,
+    type: 'video',
+    order: 'relevance',
+    maxResults: SEARCH_RESULTS,
+  }
+  if (days > 0) params.publishedAfter = new Date(Date.now() - days * 86_400_000).toISOString()
+  const res = await yt<{ items?: any[] }>('search', params)
+  return (res.items ?? []).map((i) => i.id?.videoId).filter(Boolean)
 }
