@@ -63,6 +63,7 @@ function toChannel(item: any): Channel {
     viewCount: toNumber(item.statistics?.viewCount),
     videoCount: toNumber(item.statistics?.videoCount),
     lastSyncedAt: null,
+    isMine: false,
   }
 }
 

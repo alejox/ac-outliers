@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createError } from 'h3'
+import type { ChannelSnapshot } from '~~/shared/achievements'
+import type { MomentumPoint } from '~~/shared/home'
 import type { Channel, PreviousReading, ScoredVideo, Topic, Video } from '~~/shared/outliers'
 
 /** Los datos de YouTube que no se refrescan en este plazo se borran (política de la API). */
@@ -45,6 +47,7 @@ const toChannel = (r: any): Channel => ({
   viewCount: r.view_count ?? null,
   videoCount: r.video_count ?? null,
   lastSyncedAt: r.last_synced_at,
+  isMine: r.is_mine ?? false,
 })
 
 const toVideo = (r: any): Video => ({
@@ -128,10 +131,47 @@ export async function dbListPreviousReadings(): Promise<Map<string, PreviousRead
   return readings
 }
 
+/** Marca o desmarca un canal como tuyo. */
+export async function dbSetChannelMine(id: string, mine: boolean): Promise<void> {
+  const { error } = await db().from('channels').update({ is_mine: mine }).eq('id', id)
+  check(error, 'marcar el canal')
+}
+
+/** Fotos diarias de suscriptores y vistas de unos canales, de la más antigua a la más nueva. */
+export async function dbListChannelSnapshots(ids: string[]): Promise<Map<string, ChannelSnapshot[]>> {
+  const byChannel = new Map<string, ChannelSnapshot[]>(ids.map((id) => [id, []]))
+  if (ids.length === 0) return byChannel
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db()
+      .from('channel_snapshots')
+      .select('channel_id, captured_on, subscriber_count, view_count')
+      .in('channel_id', ids)
+      .order('captured_on')
+      .range(from, from + PAGE - 1)
+    check(error, 'leer el historial de los canales')
+    for (const r of data ?? []) {
+      byChannel.get(r.channel_id)?.push({
+        date: r.captured_on,
+        subscriberCount: r.subscriber_count === null ? null : Number(r.subscriber_count),
+        viewCount: r.view_count === null ? null : Number(r.view_count),
+      })
+    }
+    if (!data || data.length < PAGE) break
+  }
+  return byChannel
+}
+
 export async function dbDeleteChannel(id: string): Promise<void> {
   // Los videos y snapshots del canal se borran en cascada.
   const { error } = await db().from('channels').delete().eq('id', id)
   check(error, 'quitar el canal')
+}
+
+/** Videos guardados de un solo canal. */
+export async function dbListChannelVideos(channelId: string): Promise<Video[]> {
+  const { data, error } = await db().from('videos').select('*').eq('channel_id', channelId)
+  check(error, 'leer los videos del canal')
+  return (data ?? []).map(toVideo)
 }
 
 export async function dbListVideos(): Promise<Video[]> {
@@ -209,9 +249,14 @@ const toTopic = (r: any): Topic => ({
   fetchedAt: r.fetched_at,
 })
 
+/** Últimos videos largos de cada canal encontrado en un tema, por canal. */
+export type TopicContext = Record<string, Video[]>
+
+const TOPIC_COLUMNS = 'id, query, category_id, language, days, results, fetched_at, created_at'
+
 /** Temas con sus resultados guardados, del más antiguo al más nuevo. */
 export async function dbListTopics(): Promise<(Topic & { results: TopicResults | null })[]> {
-  const { data, error } = await db().from('topics').select('*').order('created_at')
+  const { data, error } = await db().from('topics').select(TOPIC_COLUMNS).order('created_at')
   check(error, 'leer los temas')
   return (data ?? []).map((r) => ({ ...toTopic(r), results: r.results ?? null }))
 }
@@ -239,9 +284,51 @@ export async function dbCreateTopic(topic: Omit<Topic, 'id' | 'fetchedAt'>): Pro
   return toTopic(data)
 }
 
-export async function dbSaveTopicResults(id: string, results: TopicResults): Promise<void> {
-  const { error } = await db().from('topics').update({ results, fetched_at: new Date().toISOString() }).eq('id', id)
+export async function dbSaveTopicResults(id: string, results: TopicResults, context: TopicContext): Promise<void> {
+  const { error } = await db()
+    .from('topics')
+    .update({ results, context, fetched_at: new Date().toISOString() })
+    .eq('id', id)
   check(error, 'guardar los resultados del tema')
+}
+
+/** Los videos de referencia de un canal en el primer tema que lo tenga. */
+export async function dbFindTopicContext(channelId: string): Promise<Video[]> {
+  const { data, error } = await db().from('topics').select('context').order('created_at')
+  check(error, 'leer los videos de referencia de los temas')
+  for (const row of data ?? []) {
+    const videos = (row.context as TopicContext | null)?.[channelId]
+    if (videos?.length) return videos
+  }
+  return []
+}
+
+/** Guarda (o reemplaza) la foto de hoy del impulso de un tema. */
+export async function dbSaveTopicSnapshot(topicId: string, point: Omit<MomentumPoint, 'date'>): Promise<void> {
+  const { error } = await db()
+    .from('topic_snapshots')
+    .upsert(
+      { topic_id: topicId, captured_on: new Date().toISOString().slice(0, 10), ...point },
+      { onConflict: 'topic_id,captured_on' },
+    )
+  check(error, 'guardar el impulso del tema')
+}
+
+/** Fotos del impulso de cada tema desde una fecha, de la más antigua a la más nueva. */
+export async function dbListTopicSnapshots(since: string): Promise<Map<string, MomentumPoint[]>> {
+  const byTopic = new Map<string, MomentumPoint[]>()
+  const { data, error } = await db()
+    .from('topic_snapshots')
+    .select('topic_id, captured_on, momentum, outliers, videos')
+    .gte('captured_on', since)
+    .order('captured_on')
+  check(error, 'leer el impulso de los temas')
+  for (const r of data ?? []) {
+    const list = byTopic.get(r.topic_id) ?? []
+    list.push({ date: r.captured_on, momentum: Number(r.momentum), outliers: Number(r.outliers), videos: Number(r.videos) })
+    byTopic.set(r.topic_id, list)
+  }
+  return byTopic
 }
 
 export async function dbDeleteTopic(id: string): Promise<void> {

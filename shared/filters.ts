@@ -132,6 +132,23 @@ no not of on one or our out so than that the their them these they this to up wa
 )
 
 /**
+ * Palabras con significado de un título, una vez cada una: `key` va sin tildes ni mayúsculas
+ * (para comparar) y `word` en minúsculas tal como se escribió (para mostrar).
+ */
+export function titleWords(title: string): { key: string; word: string }[] {
+  const seen = new Set<string>()
+  const words: { key: string; word: string }[] = []
+  for (const raw of title.toLowerCase().split(/[^\p{L}\p{N}+#.]+/u)) {
+    const word = raw.replace(/^[.#+]+|[.]+$/g, '')
+    const key = normalizeText(word)
+    if (key.length < 3 || STOPWORDS.has(key) || /^\d+$/.test(key) || seen.has(key)) continue
+    seen.add(key)
+    words.push({ key, word })
+  }
+  return words
+}
+
+/**
  * Palabras que más se repiten en un grupo de títulos. Cuenta cada palabra una vez por título
  * y solo devuelve las que aparecen en al menos `minVideos`. Las compara sin tildes ni mayúsculas,
  * pero muestra la forma en minúsculas más usada en los títulos ("guía", no "guia").
@@ -140,12 +157,7 @@ export function topWords(titles: string[], limit = 8, minVideos = 3): { word: st
   const counts = new Map<string, number>()
   const spellings = new Map<string, Map<string, number>>()
   for (const title of titles) {
-    const seen = new Set<string>()
-    for (const raw of title.toLowerCase().split(/[^\p{L}\p{N}+#.]+/u)) {
-      const word = raw.replace(/^[.#+]+|[.]+$/g, '')
-      const key = normalizeText(word)
-      if (key.length < 3 || STOPWORDS.has(key) || /^\d+$/.test(key) || seen.has(key)) continue
-      seen.add(key)
+    for (const { key, word } of titleWords(title)) {
       counts.set(key, (counts.get(key) ?? 0) + 1)
       const forms = spellings.get(key) ?? new Map<string, number>()
       forms.set(word, (forms.get(word) ?? 0) + 1)

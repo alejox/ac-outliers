@@ -68,3 +68,27 @@ export function formatPace(perHour: number) {
 export function formatPercent(ratio: number, digits = 1) {
   return `${(ratio * 100).toLocaleString('es', { maximumFractionDigits: digits })} %`
 }
+
+const dateFormat = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' })
+
+/** "12 ago 2026". Acepta AAAA-MM-DD (día sin hora) o una fecha ISO completa. */
+export function formatDate(value: string) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : new Date(value)
+  return dateFormat.format(date).replace('.', '')
+}
+
+/** Metas redondas en palabras: "500", "10 mil", "1 millón", "10 millones". */
+export function milestoneLabel(n: number) {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000
+    return `${m.toLocaleString('es')} ${m === 1 ? 'millón' : 'millones'}`
+  }
+  if (n >= 1_000) return `${(n / 1_000).toLocaleString('es')} mil`
+  return n.toLocaleString('es')
+}
+
+/** "+38 %" o "−12 %" (con el signo menos tipográfico). */
+export function formatChange(ratio: number) {
+  const value = Math.abs(ratio * 100).toLocaleString('es', { maximumFractionDigits: 0 })
+  return `${ratio < 0 ? '−' : '+'}${value} %`
+}
