@@ -167,3 +167,32 @@ export function sinceLabel(ms: number): string {
   if (hours < 48) return `hace ${hours} h`
   return `hace ${Math.round(hours / 24)} días`
 }
+
+/** Los videos con mejor score publicados en los últimos `days` días, sin los de `exclude`. */
+export function bestOf(videos: ScoredVideo[], days: number, limit = 6, exclude: Set<string> = new Set()): ScoredVideo[] {
+  const seen = new Set<string>()
+  return videos
+    .filter((v) => v.ageDays <= days && v.score !== null && v.score >= HIT_SCORE && !exclude.has(v.id))
+    .sort((a, b) => b.score! - a.score!)
+    .filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)))
+    .slice(0, limit)
+}
+
+export interface ChannelPulse {
+  /** Últimos videos del formato, del más viejo al más nuevo (para dibujar barras). */
+  recent: ScoredVideo[]
+  /** Mediana del score de los últimos 5 con score. null si no hay. */
+  median: number | null
+  latest: ScoredVideo | null
+}
+
+/** Cómo le va a un canal en sus últimas subidas de videos largos. */
+export function channelPulse(videos: ScoredVideo[], channelId: string, count = 12): ChannelPulse {
+  const own = videos
+    .filter((v) => v.channelId === channelId && !v.isShort)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+  const recent = own.slice(0, count).reverse()
+  const scores = own.filter((v) => v.score !== null).slice(0, 5).map((v) => v.score!).sort((a, b) => a - b)
+  const median = scores.length === 0 ? null : scores.length % 2 ? scores[(scores.length - 1) / 2]! : (scores[scores.length / 2 - 1]! + scores[scores.length / 2]!) / 2
+  return { recent, median, latest: own[0] ?? null }
+}

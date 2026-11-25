@@ -71,6 +71,17 @@ const toVideo = (r: any): Video => ({
 const VIDEO_COLUMNS =
   'id, channel_id, title, thumbnail_url, published_at, duration_seconds, is_short, category_id, views, likes, comments, updated_at'
 
+/** Etiquetas guardadas de varios videos (las listas de videos no las traen para no pesar). */
+export async function dbListVideoTags(ids: string[]): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>()
+  for (let i = 0; i < ids.length; i += 300) {
+    const { data, error } = await db().from('videos').select('id, tags').in('id', ids.slice(i, i + 300)).not('tags', 'is', null)
+    check(error, 'leer las etiquetas')
+    for (const r of data ?? []) out.set(r.id, r.tags ?? [])
+  }
+  return out
+}
+
 /** Todos los canales del catálogo (los que sigue alguien), sin datos de ninguna persona. */
 export async function dbListCatalogChannels(): Promise<Channel[]> {
   const { data, error } = await db().from('channels').select('*').order('title')
@@ -260,6 +271,7 @@ export async function dbSaveChannelVideos(channelId: string, videos: Video[]): P
           views: v.views,
           likes: v.likes,
           comments: v.comments,
+          ...(v.tags ? { tags: v.tags } : {}),
           updated_at: nowIso,
         })),
       )

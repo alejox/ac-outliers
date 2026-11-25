@@ -90,3 +90,24 @@ describe('suggestCompetitors', () => {
     expect(largestMine([channel()])).toBeNull()
   })
 })
+
+describe('bestOf y channelPulse', async () => {
+  const { bestOf, channelPulse } = await import('../shared/home')
+  const { scored, video, daysAgo } = await import('./helpers')
+  const list = scored([
+    ...Array.from({ length: 8 }, (_, i) => video({ views: 1000, publishedAt: daysAgo(10 + i) })),
+    video({ id: 'big', views: 9000, publishedAt: daysAgo(5) }),
+    video({ id: 'old', views: 20000, publishedAt: daysAgo(80) }),
+  ])
+  it('elige los más fuertes del periodo', () => {
+    expect(bestOf(list, 30).map((v) => v.id)).toEqual(['big'])
+    expect(bestOf(list, 90).map((v) => v.id)).toEqual(['old', 'big'])
+    expect(bestOf(list, 90, 6, new Set(['old'])).map((v) => v.id)).toEqual(['big'])
+  })
+  it('resume las últimas subidas de un canal', () => {
+    const p = channelPulse(list, 'c1')
+    expect(p.latest?.id).toBe('big')
+    expect(p.recent.at(-1)?.id).toBe('big')
+    expect(p.median).not.toBeNull()
+  })
+})

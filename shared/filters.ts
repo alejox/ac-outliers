@@ -120,7 +120,7 @@ export function applyFilters(
 }
 
 // Palabras vacías en español e inglés, escritas sin tildes (se comparan normalizadas).
-const STOPWORDS = new Set(
+export const STOPWORDS = new Set(
   `a al algo algun alguna ante antes asi aun aunque bien cada casi como con contra cual cuando de del desde despues donde dos
 durante el ella ellos en entre era es esa ese eso esta estan estas este esto estos fue ha hace hacer hasta hay la las le les lo
 los mas me mejor mi mis mucho muy nada ni no nos nuevo nueva o otra otro para pero poco por porque que quien se sea ser si sin

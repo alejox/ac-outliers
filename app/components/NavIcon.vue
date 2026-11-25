@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Íconos de línea de la navegación (20 px, trazo de 1,6). */
-defineProps<{ name: 'home' | 'mine' | 'trends' | 'following' | 'discover' | 'channels' | 'saved' | 'more' }>()
+defineProps<{ name: 'home' | 'mine' | 'trends' | 'following' | 'discover' | 'channels' | 'words' | 'saved' | 'more' }>()
 </script>
 
 <template>
@@ -21,6 +21,10 @@ defineProps<{ name: 'home' | 'mine' | 'trends' | 'following' | 'discover' | 'cha
     <template v-else-if="name === 'channels'">
       <rect x="3.5" y="5" width="17" height="14" rx="2" />
       <path d="M3.5 10h17M10 10v9" />
+    </template>
+    <template v-else-if="name === 'words'">
+      <path d="M4 7h10M4 12h7M4 17h9" />
+      <path d="m15.5 14.5 2 2 3.5-4.5" />
     </template>
     <path v-else-if="name === 'saved'" d="M6.5 4h11a1 1 0 0 1 1 1v15l-6.5-4.2L5.5 20V5a1 1 0 0 1 1-1z" />
     <template v-else>
