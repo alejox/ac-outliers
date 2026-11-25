@@ -1,7 +1,7 @@
 // Habla con la app AC Outliers. La página de YouTube nunca ve la dirección de la app ni el token:
 // el script de la página le pide puntajes a este service worker y él hace las peticiones.
 
-const DEFAULTS = { appUrl: 'https://ac-outliers.vercel.app', token: '', connected: false, mode: '', enabled: true, minScore: 0 }
+const DEFAULTS = { appUrl: 'https://acoutliers.alejoxcode.com', token: '', connected: false, mode: '', enabled: true, minScore: 0 }
 /** Los puntajes de un video se reutilizan durante 6 horas: sus vistas casi no cambian el score en ese plazo. */
 const CACHE_HOURS = 6
 const CACHE_LIMIT = 3000
@@ -132,7 +132,7 @@ async function connect({ appUrl, password }) {
     if (!/^https?:$/.test(url.protocol)) throw new Error()
     base = url.origin
   } catch {
-    throw new Error('Escribe la dirección completa de la app, por ejemplo https://ac-outliers.vercel.app.')
+    throw new Error('Escribe la dirección completa de la app, por ejemplo https://acoutliers.alejoxcode.com.')
   }
   const data = await call('/api/ext/connect', { method: 'POST', body: { password }, token: '', base })
   // Cambiar de app o de modo invalida los puntajes guardados.
