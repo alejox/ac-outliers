@@ -12,20 +12,28 @@
       <span class="status" id="status" hidden><span class="status-dot"></span><span id="status-text"></span></span>
     </header>
 
-    <form class="connect" id="connect" hidden>
-      <p class="lead">Conecta la extensión con tu app para ver el score de cada video mientras navegas YouTube.</p>
-      <label class="field">
-        <span>Dirección de la app</span>
-        <input id="app-url" type="url" required autocomplete="url" spellcheck="false" />
-      </label>
-      <label class="field">
-        <span>Contraseña de la app</span>
-        <input id="password" type="password" autocomplete="current-password" />
-      </label>
+    <section class="connect" id="connect" hidden>
+      <p class="lead">Conecta la extensión con tu cuenta de AC Outliers para ver el score de cada video mientras navegas YouTube.</p>
+      <button class="primary" type="button" id="google-button">Conectar con Google</button>
+      <p class="hint">Se abre una pestaña de la app; si no has entrado, entras con Google ahí mismo.</p>
       <p class="error" id="connect-error" role="alert" hidden></p>
-      <button class="primary" type="submit" id="connect-button">Conectar</button>
+
+      <details class="other" id="other">
+        <summary>Conectar con la contraseña de la app</summary>
+        <form id="password-form">
+          <label class="field">
+            <span>Dirección de la app</span>
+            <input id="app-url" type="url" required autocomplete="url" spellcheck="false" />
+          </label>
+          <label class="field">
+            <span>Contraseña de la app</span>
+            <input id="password" type="password" autocomplete="current-password" />
+          </label>
+          <button class="secondary-button" type="submit" id="connect-button">Conectar</button>
+        </form>
+      </details>
       <a class="foot-link" href="https://acoutliers.alejoxcode.com/privacidad/" target="_blank" rel="noopener">Privacidad</a>
-    </form>
+    </section>
 
     <section class="panel" id="panel" hidden>
       <label class="row toggle">
@@ -46,6 +54,7 @@
         </div>
       </div>
 
+      <p class="meta" id="account"></p>
       <p class="meta" id="quota"></p>
       <p class="error" id="panel-error" role="alert" hidden></p>
 

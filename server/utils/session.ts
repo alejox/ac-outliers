@@ -24,14 +24,33 @@ export function signSession(userId: string): string {
   return `${body}.${createHmac('sha256', key('session')).update(body).digest('base64url')}`
 }
 
-/** El ID del usuario con sesión iniciada, o null. */
-export function readSession(event: H3Event): string | null {
-  if (!googleConfigured()) return null
-  const raw = getCookie(event, USER_COOKIE) ?? ''
+function verify(raw: string, purpose: string): string | null {
   const [userId, exp, sig] = raw.split('.')
   if (!userId || !exp || !sig || Number(exp) < Date.now()) return null
-  const expected = createHmac('sha256', key('session')).update(`${userId}.${exp}`).digest('base64url')
+  const expected = createHmac('sha256', key(purpose)).update(`${userId}.${exp}`).digest('base64url')
   return safeEqual(sig, expected) ? userId : null
+}
+
+/** Prefijo del token de la extensión conectada con una cuenta de Google (el de la contraseña no lo lleva). */
+export const EXT_TOKEN_PREFIX = 'u_'
+const EXT_TOKEN_DAYS = 180
+
+/** Token propio para la extensión: con él actúa como esa cuenta. Vale 180 días. */
+export function signExtToken(userId: string): string {
+  const exp = Date.now() + EXT_TOKEN_DAYS * 86_400_000
+  const body = `${userId}.${exp}`
+  return `${EXT_TOKEN_PREFIX}${body}.${createHmac('sha256', key('ext')).update(body).digest('base64url')}`
+}
+
+/**
+ * El ID del usuario de esta petición, o null: por la cookie de sesión de la web, o por el token de
+ * la extensión conectada con Google.
+ */
+export function readSession(event: H3Event): string | null {
+  if (!googleConfigured()) return null
+  const bearer = /^Bearer (.+)$/.exec(getRequestHeader(event, 'authorization') ?? '')?.[1] ?? ''
+  if (bearer.startsWith(EXT_TOKEN_PREFIX)) return verify(bearer.slice(EXT_TOKEN_PREFIX.length), 'ext')
+  return verify(getCookie(event, USER_COOKIE) ?? '', 'session')
 }
 
 export function setUserCookie(event: H3Event, userId: string) {

@@ -23,7 +23,7 @@ Qué hace:
 • Los videos recién publicados aparecen como "Nuevo" hasta que tengan tiempo de compararse.
 • Filtra desde el panel: todos, 2×, 5× o 10×.
 
-Funciona conectada a tu app AC Outliers, donde sigues canales y temas, ves tendencias y guardas los videos.
+Se conecta con tu cuenta de AC Outliers (entras con Google), donde sigues canales y temas, ves tendencias y guardas los videos.
 
 Privacidad: la extensión solo lee los IDs de los videos que aparecen en YouTube. No lee tu historial, tus búsquedas ni tu cuenta.
 
@@ -44,11 +44,12 @@ Mostrar en YouTube cuántas veces cada video superó las vistas normales de su c
 **Justificación de permisos:**
 - `storage`: guarda la dirección de la app del usuario, su código de conexión, sus ajustes y, por unas horas, los puntajes ya consultados para no repetir peticiones.
 - Acceso a `https://www.youtube.com/*` (script de contenido): lee los IDs de los videos de la página para poner el score sobre cada miniatura y bajo el título.
+- Acceso a `https://acoutliers.alejoxcode.com/conectar-extension` (script de contenido): en esa única página de la app del usuario, recoge el acceso de su cuenta cuando pulsa "Conectar con Google".
 
 **¿Usas código remoto?** No. Todo el código va en el paquete; la extensión solo recibe datos (puntajes) en JSON.
 
 **Datos que se recopilan (marcar):**
-- Información de autenticación: la contraseña de la app se envía una vez a la app del usuario para obtener el código de conexión.
+- Información de autenticación: el acceso de la cuenta del usuario en AC Outliers (o, si elige la contraseña de la app, la contraseña, que se envía una vez para obtener el código de conexión). No se piden ni se ven las credenciales de Google: el usuario entra con Google en la web de la app.
 - Contenido del sitio web: IDs de los videos que aparecen en YouTube.
 
 **Certificaciones (marcar las tres):**
