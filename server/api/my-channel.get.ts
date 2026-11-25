@@ -1,4 +1,4 @@
-import { parsePeriod, periodDates, reportRows, sourceShares } from '~~/shared/analytics'
+import { dailySeries, parsePeriod, periodDates, previousPeriodDates, readTotals, reportRows, sourceShares } from '~~/shared/analytics'
 
 /**
  * "Mi canal": de dónde vienen las vistas del canal de quien entró con Google, qué buscan para
@@ -18,6 +18,8 @@ export default defineEventHandler(async (event) => {
 
   const { access_token: token } = await refreshAccessToken(refresh)
   const dates = periodDates(period)
+  const before = previousPeriodDates(period)
+  const TOTALS = 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost'
   const detail = (type: string, max: number) =>
     analyticsReport(token, {
       ...dates,
@@ -28,14 +30,16 @@ export default defineEventHandler(async (event) => {
       maxResults: max,
     })
 
-  const [totals, sources, search, related] = await Promise.all([
-    analyticsReport(token, { ...dates, metrics: 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost' }),
+  const [totals, previous, daily, sources, search, related] = await Promise.all([
+    analyticsReport(token, { ...dates, metrics: TOTALS }),
+    // El periodo anterior del mismo largo, para comparar, y las vistas día a día para la curva.
+    analyticsReport(token, { ...before, metrics: TOTALS }),
+    analyticsReport(token, { ...dates, dimensions: 'day', metrics: 'views', sort: 'day' }),
     analyticsReport(token, { ...dates, dimensions: 'insightTrafficSourceType', metrics: 'views' }),
     detail('YT_SEARCH', 25),
     detail('RELATED_VIDEO', 15),
   ])
 
-  const t = reportRows(totals)[0] ?? {}
   const relatedRows = reportRows(related).map((r) => ({ videoId: String(r.insightTrafficSourceDetail), views: Number(r.views) }))
   const videos = relatedRows.length ? await fetchVideosByIds(relatedRows.map((r) => r.videoId)) : []
   const channels = videos.length ? await fetchChannelsByIds([...new Set(videos.map((v) => v.channelId))]) : []
@@ -47,13 +51,13 @@ export default defineEventHandler(async (event) => {
     channel: { id: user.channelId, title: user.channelTitle },
     period,
     ...dates,
-    totals: {
-      views: Number(t.views ?? 0),
-      minutes: Number(t.estimatedMinutesWatched ?? 0),
-      averageViewDuration: Number(t.averageViewDuration ?? 0),
-      subscribersGained: Number(t.subscribersGained ?? 0),
-      subscribersLost: Number(t.subscribersLost ?? 0),
-    },
+    totals: readTotals(reportRows(totals)[0]),
+    previous: { ...before, ...readTotals(reportRows(previous)[0]) },
+    daily: dailySeries(
+      reportRows(daily).map((r) => ({ day: String(r.day), views: Number(r.views) })),
+      dates.startDate,
+      dates.endDate,
+    ),
     sources: sourceShares(reportRows(sources).map((r) => ({ type: String(r.insightTrafficSourceType), views: Number(r.views) }))),
     searchTerms: reportRows(search).map((r) => ({ term: String(r.insightTrafficSourceDetail), views: Number(r.views) })),
     related: relatedRows.map((r) => {
