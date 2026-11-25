@@ -86,3 +86,10 @@ export function demoScores(requests: VideoRequest[]): ExtScore[] {
     return { id, channelId: 'demo', short, views: Math.round(score * baseline), baseline, score }
   })
 }
+
+/** Etiquetas de ejemplo para el modo demo. */
+export function demoTags(id: string): string[] {
+  const pool = ['obs studio', 'streaming', 'tutorial obs', 'plugins obs', 'configurar obs', 'directo', 'kick', 'twitch', 'stream deck', 'overlay']
+  const start = id.charCodeAt(0) % pool.length
+  return Array.from({ length: 6 }, (_, i) => pool[(start + i) % pool.length]!)
+}

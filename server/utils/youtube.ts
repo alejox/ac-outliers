@@ -158,6 +158,13 @@ export async function fetchShortVideos(channelId: string): Promise<Video[]> {
   return items.map((item) => toVideo(item, true)).filter(isVideo)
 }
 
+/** Las etiquetas que el creador le puso a un video. 1 unidad. */
+export async function fetchVideoTags(id: string): Promise<string[] | null> {
+  const res = await yt<{ items?: any[] }>('videos', { part: 'snippet', id })
+  const item = res.items?.[0]
+  return item ? ((item.snippet?.tags as string[] | undefined) ?? []) : null
+}
+
 /** Videos sueltos por ID, tratados como videos largos. 1 unidad por cada 50. */
 export async function fetchVideosByIds(ids: string[]): Promise<Video[]> {
   const items = await fetchVideoDetails(ids)

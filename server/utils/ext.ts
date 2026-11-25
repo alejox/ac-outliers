@@ -7,7 +7,7 @@ import {
   type ExtScore,
   type VideoRequest,
 } from '~~/shared/extension'
-import type { Video } from '~~/shared/outliers'
+import { scoreVideos, type ScoredVideo, type Video } from '~~/shared/outliers'
 
 /** Un canal seguido con sus videos al día no necesita volver a YouTube: se calcula con lo guardado. */
 const SYNC_FRESH_HOURS = 48
@@ -19,21 +19,20 @@ async function inBatches<T>(items: T[], size: number, run: (item: T) => Promise<
 }
 
 /**
- * Puntúa los videos que la extensión ve en YouTube contra lo normal de su canal.
+ * Trae unos videos por ID y lo normal de su canal en su formato.
  * Cuesta 1 unidad por los videos, y 2 por cada canal y formato que no se haya calculado en el último día.
  */
-export async function scoreForExtension(requests: VideoRequest[]): Promise<{ scores: ExtScore[]; quotaUsed: number }> {
-  if (requests.length === 0) return { scores: [], quotaUsed: 0 }
+export async function videosWithBaselines(
+  requests: VideoRequest[],
+): Promise<{ items: { video: Video; baseline: number | null }[]; quotaUsed: number }> {
+  if (requests.length === 0) return { items: [], quotaUsed: 0 }
   const now = new Date()
   const shortById = new Map(requests.map((r) => [r.id, r.short]))
-  const videos = await fetchVideosByIds(requests.map((r) => r.id))
+  const videos = (await fetchVideosByIds(requests.map((r) => r.id))).map((v) => ({ ...v, isShort: shortById.get(v.id) ?? false }))
   let quotaUsed = 1
 
   const keys = new Map<string, { channelId: string; short: boolean }>()
-  for (const v of videos) {
-    const short = shortById.get(v.id) ?? false
-    keys.set(baselineKey(v.channelId, short), { channelId: v.channelId, short })
-  }
+  for (const v of videos) keys.set(baselineKey(v.channelId, v.isShort), { channelId: v.channelId, short: v.isShort })
   const channelIds = [...new Set([...keys.values()].map((k) => k.channelId))]
 
   const known = new Map<string, Baseline>()
@@ -66,10 +65,38 @@ export async function scoreForExtension(requests: VideoRequest[]): Promise<{ sco
     await dbSaveBaselines(computed)
   }
 
-  const scores = videos.map((v) => {
-    const short = shortById.get(v.id) ?? false
-    const baseline = known.get(baselineKey(v.channelId, short))?.median ?? null
-    return { id: v.id, channelId: v.channelId, short, views: v.views, baseline, score: scoreAgainst(v.views, baseline) }
-  })
+  return {
+    items: videos.map((video) => ({ video, baseline: known.get(baselineKey(video.channelId, video.isShort))?.median ?? null })),
+    quotaUsed,
+  }
+}
+
+/** Puntúa los videos que la extensión ve en YouTube contra lo normal de su canal. */
+export async function scoreForExtension(requests: VideoRequest[]): Promise<{ scores: ExtScore[]; quotaUsed: number }> {
+  const { items, quotaUsed } = await videosWithBaselines(requests)
+  const scores = items.map(({ video, baseline }) => ({
+    id: video.id,
+    channelId: video.channelId,
+    short: video.isShort,
+    views: video.views,
+    baseline,
+    score: scoreAgainst(video.views, baseline),
+  }))
   return { scores, quotaUsed }
+}
+
+/**
+ * Guarda un video por su ID con su score de hoy. Los de canales que sigues se toman de lo ya guardado;
+ * los demás cuestan 1 unidad por el video, 1 por el canal y 2 si su canal no se calculó hoy.
+ */
+export async function saveVideoById(id: string, short: boolean): Promise<ScoredVideo> {
+  const { items } = await videosWithBaselines([{ id, short }])
+  const item = items[0]
+  if (!item) throw createError({ statusCode: 404, message: 'YouTube no devolvió ese video: puede ser privado o estar en vivo.' })
+  const [scored] = scoreVideos([item.video])
+  const video: ScoredVideo = { ...scored!, baseline: item.baseline, score: scoreAgainst(item.video.views, item.baseline) }
+  const followed = (await dbListChannels()).find((c) => c.id === video.channelId)
+  const channel = followed ?? (await fetchChannelsByIds([video.channelId]))[0] ?? null
+  await dbSaveVideo(video, channel)
+  return video
 }

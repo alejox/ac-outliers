@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AC Outliers",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Muestra encima de cada video de YouTube cuántas veces superó las vistas normales de su canal.",
   "icons": {
     "16": "icons/icon16.png",

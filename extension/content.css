@@ -73,3 +73,89 @@
 .acx-chip[data-tier='top'] .acx-dot {
   display: block;
 }
+
+.acx-chip {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.acx-chip-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.acx-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.acx-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid #363739;
+  border-radius: 6px;
+  background: #1b1c1e;
+  color: #e6e6e6;
+  font: 500 12px/1 Inter, Roboto, Arial, sans-serif;
+  cursor: pointer;
+}
+.acx-button:hover:not(:disabled) {
+  background: #242527;
+}
+.acx-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.acx-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.3);
+  outline-offset: 2px;
+}
+.acx-button[aria-pressed='true'],
+.acx-button[aria-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.acx-ghost {
+  background: transparent;
+}
+.acx-count {
+  color: #9c9c9d;
+  font-variant-numeric: tabular-nums;
+}
+.acx-state {
+  padding: 0 4px;
+  color: #9c9c9d;
+  font-size: 12px;
+}
+.acx-message {
+  margin: 0;
+  color: #ff6363;
+  font-size: 12px;
+}
+.acx-tags {
+  display: grid;
+  gap: 8px;
+  max-width: 640px;
+}
+.acx-tags ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.acx-tags li {
+  padding: 3px 8px;
+  border: 1px solid #363739;
+  border-radius: 6px;
+  color: #e6e6e6;
+  font-size: 12px;
+}
+.acx-tags .acx-button {
+  justify-self: start;
+}

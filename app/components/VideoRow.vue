@@ -3,6 +3,15 @@ import type { Channel, ScoredVideo } from '~~/shared/outliers'
 
 defineProps<{ video: ScoredVideo; channel?: Channel }>()
 defineEmits<{ analyze: [video: ScoredVideo] }>()
+
+/** Lo da app.vue: guardar o quitar el video de Guardados. Sin él (modo demo) no hay botón. */
+const saver = inject<{
+  enabled: Ref<boolean>
+  isSaved: (id: string) => boolean
+  busy: Ref<string | null>
+  error: Ref<{ id: string; text: string } | null>
+  toggle: (video: ScoredVideo) => void
+} | null>('saver', null)
 </script>
 
 <template>
@@ -25,10 +34,21 @@ defineEmits<{ analyze: [video: ScoredVideo] }>()
         </h3>
         <div class="video-action">
           <slot />
+          <button
+            v-if="saver?.enabled.value"
+            class="button button-small button-outline"
+            type="button"
+            :aria-pressed="saver.isSaved(video.id)"
+            :disabled="saver.busy.value !== null"
+            @click="saver.toggle(video)"
+          >
+            {{ saver.busy.value === video.id ? 'Guardando' : saver.isSaved(video.id) ? 'Guardado' : 'Guardar' }}<span class="sr-only"> “{{ video.title }}”</span>
+          </button>
           <button class="button button-small button-outline" type="button" @click="$emit('analyze', video)">
             Analizar<span class="sr-only"> “{{ video.title }}”</span>
           </button>
         </div>
+        <p v-if="saver?.error.value?.id === video.id" class="row-error" role="alert">{{ saver.error.value.text }}</p>
         <p class="byline">
           <span>{{ channel?.title }}</span>
           <span v-if="channel?.subscriberCount">{{ compact.format(channel.subscriberCount) }} suscriptores</span>
