@@ -6,5 +6,5 @@ export default defineEventHandler(async (event) => {
   if (name.length < 1 || name.length > 40) {
     throw createError({ statusCode: 400, message: 'Ponle a la colección un nombre de hasta 40 caracteres.' })
   }
-  return { collection: await dbCreateCollection(name) }
+  return { collection: await dbCreateCollection(await currentUserId(event), name) }
 })

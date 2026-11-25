@@ -10,7 +10,8 @@ export default defineEventHandler(async (event) => {
   if (!/^[\w-]{11}$/.test(id)) throw createError({ statusCode: 400, message: 'Falta el ID del video.' })
   if (appMode() === 'demo') return { mode: 'demo', tags: demoTags(id), saved: false, followed: false }
 
-  const [tags, saved, channels] = await Promise.all([fetchVideoTags(id), dbIsSaved(id), dbListChannels()])
+  const userId = await currentUserId(event)
+  const [tags, saved, channels] = await Promise.all([fetchVideoTags(id), dbIsSaved(userId, id), dbListChannels(userId)])
   return {
     mode: 'live',
     tags: tags ?? [],

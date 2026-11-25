@@ -14,6 +14,8 @@ export default defineEventHandler(async (event) => {
 
   const tokens = await exchangeCode(event, query.code)
   const [profile, channel] = await Promise.all([googleProfile(tokens.access_token), myYouTubeChannel(tokens.access_token).catch(() => null)])
+  // La primera vez que el dueño entra con Google, se queda con los datos que ya había.
+  if (profile.email.toLowerCase() === ownerEmail()) await dbClaimOwner(profile.sub)
   const user = await dbUpsertUser({
     googleSub: profile.sub,
     email: profile.email,
@@ -27,9 +29,9 @@ export default defineEventHandler(async (event) => {
 
   if (channel) {
     try {
-      const followed = (await dbListChannels()).some((c) => c.id === channel.id)
-      if (!followed) await syncChannel(channel.id)
-      await dbSetChannelMine(channel.id, true)
+      const known = (await dbListCatalogChannels()).some((c) => c.id === channel.id)
+      if (!known) await syncChannel(channel.id)
+      await dbFollowChannel(user.id, channel.id, true)
     } catch {
       // Seguir el canal es un extra: el login sigue aunque falle (por ejemplo, sin cuota).
     }

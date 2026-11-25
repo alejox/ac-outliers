@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   if (ids.length === 0) return { channels: [], videos: [], context: [], quotaUsed: 100 }
 
   const found = await fetchVideosByIds(ids)
-  const { context: _raw, scoredContext, ...scored } = await scoreFoundVideos(found)
+  const { context: _raw, scoredContext, ...scored } = await scoreFoundVideos(found, await currentUserId(event))
   // context: los videos largos recientes de cada canal encontrado, para el panel "Analizar".
   const context = scoredContext.map((v) => ({ ...v, thumbnailUrl: null }))
   return { ...scored, context, quotaUsed: scored.quotaUsed + 101 }

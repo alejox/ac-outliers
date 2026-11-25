@@ -12,6 +12,8 @@ export default defineNuxtConfig({
     // Login con Google (proyecto ac-outliers de Google Cloud). Sin ellas, solo se entra con la contraseña.
     googleClientId: '',
     googleClientSecret: '',
+    // Quien entra con este correo de Google es el dueño: ve los datos de la contraseña y la extensión.
+    ownerEmail: 'alejoxcode@gmail.com',
   },
 
   css: ['~/assets/main.css'],

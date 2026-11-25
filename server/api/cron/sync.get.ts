@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
   requireLive()
 
-  const channels = await dbListChannels()
+  const channels = await dbListCatalogChannels()
   const failed: string[] = []
   for (const channel of channels) {
     try {
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     }
   }
   // Los temas van después: si la cuota se agota, los canales ya quedaron al día.
-  const topics = await dbListTopics()
+  const topics = await dbListAllTopics()
   for (const topic of topics) {
     try {
       await refreshTopic(topic)

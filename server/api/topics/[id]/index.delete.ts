@@ -1,6 +1,6 @@
-/** Deja de seguir un tema y borra sus resultados guardados. */
+/** Deja de seguir un tema. Si nadie más lo sigue, se borran sus resultados guardados. */
 export default defineEventHandler(async (event) => {
   requireLive()
-  await dbDeleteTopic(getRouterParam(event, 'id')!)
+  await dbDeleteTopic(await currentUserId(event), getRouterParam(event, 'id')!)
   return { ok: true }
 })
