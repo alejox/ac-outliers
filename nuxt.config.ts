@@ -9,6 +9,9 @@ export default defineNuxtConfig({
     supabaseUrl: '',
     supabaseSecretKey: '',
     appPassword: '',
+    // Login con Google (proyecto ac-outliers de Google Cloud). Sin ellas, solo se entra con la contraseña.
+    googleClientId: '',
+    googleClientSecret: '',
   },
 
   css: ['~/assets/main.css'],

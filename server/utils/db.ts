@@ -513,3 +513,58 @@ export async function dbListVideoChanges(videoId: string): Promise<VideoChange[]
   check(error, 'leer los cambios del video')
   return (data ?? []).map((r) => ({ videoId: r.video_id, kind: r.kind, before: r.before, after: r.after, changedAt: r.changed_at }))
 }
+
+// Usuarios (login con Google)
+
+export interface AppUser {
+  id: string
+  email: string
+  name: string | null
+  picture: string | null
+  channelId: string | null
+  channelTitle: string | null
+  refreshTokenEnc: string | null
+}
+
+const toUser = (r: any): AppUser => ({
+  id: r.id,
+  email: r.email,
+  name: r.name,
+  picture: r.picture,
+  channelId: r.channel_id,
+  channelTitle: r.channel_title,
+  refreshTokenEnc: r.refresh_token_enc,
+})
+
+export async function dbUpsertUser(user: {
+  googleSub: string
+  email: string
+  name: string | null
+  picture: string | null
+  channelId: string | null
+  channelTitle: string | null
+  refreshTokenEnc: string | null
+  scopes: string | null
+}): Promise<AppUser> {
+  const row: Record<string, unknown> = {
+    google_sub: user.googleSub,
+    email: user.email,
+    name: user.name,
+    picture: user.picture,
+    channel_id: user.channelId,
+    channel_title: user.channelTitle,
+    scopes: user.scopes,
+    last_login_at: new Date().toISOString(),
+  }
+  // Google solo entrega el refresh token a veces: si no vino, se conserva el anterior.
+  if (user.refreshTokenEnc) row.refresh_token_enc = user.refreshTokenEnc
+  const { data, error } = await db().from('users').upsert(row, { onConflict: 'google_sub' }).select('*').single()
+  check(error, 'guardar el usuario')
+  return toUser(data)
+}
+
+export async function dbGetUser(id: string): Promise<AppUser | null> {
+  const { data, error } = await db().from('users').select('*').eq('id', id).maybeSingle()
+  check(error, 'leer el usuario')
+  return data ? toUser(data) : null
+}

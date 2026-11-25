@@ -295,3 +295,52 @@ export function demoVideoChanges(id: string, now: Date = new Date()): VideoChang
   }
   return []
 }
+
+// "Mi canal" de ejemplo para el modo demo.
+export function demoMyChannel(period: number) {
+  const scale = period / 28
+  const terms = ['obs studio', 'como configurar obs', 'plugin obs', 'stream deck casero', 'obs vertical', 'alertas obs gratis', 'multistream obs', 'obs tutorial español']
+  const related = [
+    ['Configuré OBS como un profesional', 'Pixel Forja'],
+    ['7 plugins de OBS que deberías instalar', 'La Terminal de Nico'],
+    ['Mi setup de streaming completo', 'Taller de Directos'],
+    ['Kick vs Twitch: los números reales', 'Byte a Byte'],
+    ['Probé el modo vertical de OBS', 'Código en Pijama'],
+  ]
+  return {
+    demo: true,
+    channel: { id: 'demo', title: 'Código en Pijama' },
+    period,
+    ...periodDatesDemo(period),
+    totals: {
+      views: Math.round(184_200 * scale),
+      minutes: Math.round(612_400 * scale),
+      averageViewDuration: 247,
+      subscribersGained: Math.round(1_830 * scale),
+      subscribersLost: Math.round(210 * scale),
+    },
+    sources: [
+      { type: 'RELATED_VIDEO', name: 'Videos sugeridos', views: 0, share: 0.41 },
+      { type: 'YT_SEARCH', name: 'Búsqueda de YouTube', views: 0, share: 0.27 },
+      { type: 'SUBSCRIBER', name: 'Inicio y suscripciones', views: 0, share: 0.18 },
+      { type: 'SHORTS', name: 'Feed de Shorts', views: 0, share: 0.07 },
+      { type: 'EXT_URL', name: 'Sitios externos', views: 0, share: 0.04 },
+      { type: 'OTHER', name: 'Otras fuentes', views: 0, share: 0.03 },
+    ].map((s) => ({ ...s, views: Math.round(184_200 * scale * s.share) })),
+    searchTerms: terms.map((term, i) => ({ term, views: Math.round((5200 / (i + 1.4)) * scale) })),
+    related: related.map(([title, channelTitle], i) => ({
+      videoId: `demo-rel-${i}`,
+      views: Math.round((9800 / (i + 1.2)) * scale),
+      title,
+      thumbnailUrl: null,
+      channelTitle,
+      own: false,
+    })),
+  }
+}
+
+function periodDatesDemo(days: number) {
+  const end = new Date(Date.now() - 86_400_000)
+  const start = new Date(end.getTime() - (days - 1) * 86_400_000)
+  return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) }
+}
