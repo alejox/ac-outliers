@@ -22,6 +22,9 @@ export interface ExtScore {
   channelId: string
   short: boolean
   views: number
+  publishedAt: string
+  /** Vistas por hora desde que se publicó. */
+  viewsPerHour: number
   /** Vistas normales del canal en ese formato. null si el canal tiene muy pocos videos para saberlo. */
   baseline: number | null
   score: number | null
@@ -70,6 +73,12 @@ export function isBaselineFresh(computedAt: string, now: Date = new Date()): boo
   return age >= 0 && age < BASELINE_TTL_HOURS * 3_600_000
 }
 
+/** Vistas por hora desde la publicación, con al menos una hora para no dividir por casi cero. */
+export function paceSince(views: number, publishedAt: string, now: Date = new Date()): number {
+  const hours = (now.getTime() - new Date(publishedAt).getTime()) / 3_600_000
+  return views / Math.max(hours, 1)
+}
+
 export function scoreAgainst(views: number, baseline: number | null): number | null {
   return baseline && baseline > 0 ? views / baseline : null
 }
@@ -83,7 +92,9 @@ export function demoScores(requests: VideoRequest[]): ExtScore[] {
     // La mayoría cerca de lo normal, algunos muy por encima: como en YouTube.
     const score = Math.round((r < 0.7 ? 0.3 + r * 1.6 : r < 0.92 ? 1.5 + (r - 0.7) * 20 : 6 + (r - 0.92) * 150) * 10) / 10
     const baseline = 10_000 + Math.round(r * 90_000)
-    return { id, channelId: 'demo', short, views: Math.round(score * baseline), baseline, score }
+    const views = Math.round(score * baseline)
+    const publishedAt = new Date(Date.now() - (1 + Math.floor(r * 400)) * 3_600_000).toISOString()
+    return { id, channelId: 'demo', short, views, publishedAt, viewsPerHour: paceSince(views, publishedAt), baseline, score }
   })
 }
 

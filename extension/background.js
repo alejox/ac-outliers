@@ -47,7 +47,8 @@ async function readCache(ids) {
   const out = {}
   for (const id of ids) {
     const entry = stored[`s:${id}`]
-    if (entry && now - entry.at < CACHE_HOURS * 3_600_000) out[id] = entry.score
+    // Los guardados antes de la versión 0.3 no traen fecha de publicación: se vuelven a pedir.
+    if (entry && now - entry.at < CACHE_HOURS * 3_600_000 && entry.score?.publishedAt) out[id] = entry.score
   }
   return out
 }
