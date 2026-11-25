@@ -2290,348 +2290,12 @@ input[type='search']::-webkit-search-cancel-button {
   }
 }
 
-/* Teléfono */
-
+/* Teléfono: lo que queda del sistema anterior (Comparar como fichas y el formulario de canales) */
 @media (max-width: 720px) {
-  :root {
-    --control: 36px;
-  }
-
-  .page {
-    padding: 8px 16px 64px;
-  }
-
-  .page-login {
-    padding-block: 16px;
-  }
-
-  .nav {
-    top: 8px;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0;
-    height: auto;
-    margin: 0 -8px;
-    padding: 6px 8px;
-    background: rgb(7 8 10 / 0.96);
-  }
-
-  .nav::before {
-    inset: -9px -1px calc(100% + 1px);
-  }
-
-  .brand {
-    height: 32px;
-  }
-
-  .nav-action .button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-  }
-
-  .nav-action .button:has(.is-busy) {
-    width: auto;
-    padding: 0 10px;
-  }
-
-  .nav-action .button svg {
-    margin-right: 0;
-  }
-
-  .nav-action .button:has(.is-busy) svg {
-    margin-right: 6px;
-  }
-
-  .nav-action-label:not(.is-busy) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .modes {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    gap: 4px;
-    margin: 6px -8px 0;
-    padding: 6px 8px 0;
-    border-top: 1px solid var(--line);
-    overflow-x: auto;
-    scrollbar-width: none;
-    scroll-padding-inline: 8px;
-  }
-
-  /* Si las secciones no caben, el borde por donde sigue la fila se desvanece */
-  .modes.more-right {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent calc(100% - 8px));
-    mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent calc(100% - 8px));
-  }
-
-  .modes.more-left {
-    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent calc(100% - 8px));
-    mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent calc(100% - 8px));
-  }
-
-  .modes.more-left.more-right {
-    -webkit-mask-image: linear-gradient(to right, transparent 8px, #000 56px, #000 calc(100% - 56px), transparent calc(100% - 8px));
-    mask-image: linear-gradient(to right, transparent 8px, #000 56px, #000 calc(100% - 56px), transparent calc(100% - 8px));
-  }
-
-  .modes::-webkit-scrollbar {
-    display: none;
-  }
-
-  .modes button {
-    flex: none;
-    height: 32px;
-    padding: 0 12px;
-  }
-
-  .banners {
-    margin-top: 24px;
-  }
-
-  .banners + .channels {
-    margin-top: 24px;
-  }
-
-  .chip-remove {
-    width: 36px;
-  }
-
-  .masthead {
-    margin-top: 32px;
-  }
-
-  .masthead h1 {
-    font-size: 32px;
-    line-height: 40px;
-  }
-
-  .channels {
-    margin-top: 32px;
-  }
-
   .section-head .add {
     flex: 1 1 100%;
-    flex-wrap: wrap;
   }
 
-  .add input,
-  .add .button {
-    flex: 1 1 100%;
-  }
-
-  /* Canales y temas: la misma ficha de una línea, del ancho de su contenido */
-  .chip {
-    max-width: 100%;
-  }
-
-  .ranking {
-    margin-top: 32px;
-  }
-
-  /* 16px evita el zoom automático de iOS al enfocar */
-  .add input,
-  .login input {
-    font-size: 16px;
-  }
-
-  .add .button {
-    font-size: 14px;
-  }
-
-  /* Dos filas: vista y formato; buscador y "Más filtros". El resto de filtros vive en el panel */
-  .toolbar {
-    gap: 8px;
-  }
-
-  .toolbar-filters {
-    display: contents;
-  }
-
-  .toolbar .segmented button {
-    flex: 1;
-    padding: 0 4px;
-  }
-
-  .toolbar .view-switch {
-    order: 1;
-  }
-
-  .toolbar .view-switch button {
-    flex: none;
-  }
-
-  /* Sin formato: vista y "Más filtros" en la primera fila, el buscador entero en la segunda */
-  .toolbar:not(:has(.format)) .more-filters {
-    order: 2;
-    margin-left: auto;
-  }
-
-  .toolbar:not(:has(.format)) .tool-search {
-    flex-basis: 100%;
-  }
-
-  .toolbar .format {
-    order: 2;
-    flex: 1;
-  }
-
-  .toolbar .tool-search {
-    order: 3;
-    flex: 1 1 50%;
-    max-width: none;
-  }
-
-  .toolbar .more-filters {
-    order: 4;
-  }
-
-  .toolbar .tool-select {
-    order: 5;
-    flex: 1 1 100%;
-  }
-
-  .toolbar:not(.is-open) .tool-select {
-    display: none;
-  }
-
-  /* El panel es una lista: nombre a la izquierda en la columna de la miniatura, valor a la derecha */
-  .tool-select {
-    display: grid;
-    grid-template-columns: 112px minmax(0, 1fr);
-    gap: 12px;
-    align-items: center;
-    height: auto;
-    border: 0;
-    background: none;
-  }
-
-  .tool-select:has(:focus-visible) {
-    outline: 0;
-  }
-
-  .tool-select .tool-label {
-    overflow: hidden;
-    padding: 0;
-    color: var(--ash);
-    font-size: 12px;
-    font-weight: 400;
-    text-overflow: ellipsis;
-  }
-
-  .tool-short {
-    display: none;
-  }
-
-  .tool-full {
-    display: inline;
-  }
-
-  .tool-select select {
-    width: 100%;
-    margin: 0;
-    padding: 0 28px 0 12px;
-    border: 1px solid var(--line-strong);
-    text-overflow: ellipsis;
-    background-color: var(--well);
-    background-position: right 8px center;
-    field-sizing: fixed;
-  }
-
-  .tool-select.is-active select {
-    border-color: rgb(255 255 255 / 0.25);
-  }
-
-  .tool-select select:focus-visible {
-    outline: 2px solid var(--mist);
-    outline-offset: 2px;
-  }
-
-  .tool select,
-  .tool input {
-    font-size: 16px;
-  }
-
-  .toolbar-extra {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-    margin-top: 8px;
-  }
-
-  .clear-filters {
-    grid-column: 1 / -1;
-    margin: 0;
-  }
-
-  /* Formularios de sección: cada nombre sobre su control y todo a lo ancho, desde el mismo borde */
-  .ask {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .ask-label {
-    margin: 0 0 -4px;
-  }
-
-  .ask .tool-select {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
-    margin-top: 4px;
-  }
-
-  .ask .tool-select .tool-label {
-    padding: 0;
-    color: var(--ash);
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 16px;
-  }
-
-  .ask input {
-    flex: none;
-  }
-
-  .ask input,
-  .ask select {
-    font-size: 16px;
-    font-weight: 400;
-  }
-
-  .ask .button {
-    font-size: 14px;
-  }
-
-  .ask-label {
-    width: auto;
-  }
-
-  .form-foot,
-  .ask-panel,
-  .ask + .form-note,
-  .ask-panel + .form-note {
-    padding-left: 0;
-  }
-
-  .form-error {
-    margin-left: 0;
-  }
-
-  .ask .ask-options-toggle {
-    align-self: flex-start;
-    height: 36px;
-    margin-left: -8px;
-  }
-
-  /* Comparar: los encabezados se vuelven fichas para ordenar y cada canal una ficha con sus cifras */
   .table-wrap {
     overflow: visible;
     border: 0;
@@ -2652,21 +2316,7 @@ input[type='search']::-webkit-search-cancel-button {
   /* Como los formularios: nombre arriba, control a todo lo ancho */
   .table-sort {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
     margin-top: 12px;
-  }
-
-  .table-sort .tool-label {
-    padding: 0;
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 16px;
-  }
-
-  .table-sort select {
-    font-size: 16px;
   }
 
   .channel-table tbody {
@@ -2757,214 +2407,6 @@ input[type='search']::-webkit-search-cancel-button {
 
   .best-score {
     text-align: left;
-  }
-
-  .tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .tile-body {
-    padding: 8px;
-  }
-
-  .tile-meta {
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .video {
-    --thumb: 112px;
-    padding: 12px;
-  }
-
-  /* Nombre del canal en su línea (recortado si no cabe); suscriptores y antigüedad en la siguiente */
-  .byline {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 12px;
-  }
-
-  .byline span:first-child {
-    grid-column: 1 / -1;
-  }
-
-  .byline span:first-child + span::before {
-    content: none;
-  }
-
-  .byline span + span::before {
-    left: -12px;
-    width: 12px;
-  }
-
-  .score {
-    gap: 12px;
-    margin-top: 0;
-  }
-
-  /* En celular la acción baja de la línea del título a la suya, bajo los datos */
-  .video-text,
-  .video-text:has(.video-action) {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .video-text .video-action {
-    order: 1;
-    align-self: flex-start;
-    flex-wrap: wrap;
-    align-items: center;
-    max-width: 100%;
-    height: auto;
-    margin-top: 8px;
-  }
-
-  .stats {
-    grid-template-columns: var(--thumb) minmax(0, 1fr);
-    gap: 8px 12px;
-  }
-
-  .empty {
-    padding: 32px 16px;
-  }
-
-  .chip-mine {
-    width: 36px;
-  }
-
-  /* En celular la frase del éxito no se recorta: baja a una segunda línea */
-  .video-lead {
-    align-items: flex-start;
-  }
-
-  .video-lead .avatar {
-    margin-top: -2px;
-  }
-
-  .video-lead-text {
-    white-space: normal;
-  }
-
-  .feed-block + .feed-block {
-    margin-top: 48px;
-  }
-
-  /* Impulso: cada tema una ficha, con sus cifras debajo del nombre */
-  .momentum-wrap {
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-  }
-
-  .momentum,
-  .momentum tbody {
-    display: block;
-  }
-
-  .momentum thead {
-    display: none;
-  }
-
-  .momentum tbody {
-    display: grid;
-    gap: 8px;
-  }
-
-  .momentum tbody tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 12px;
-    padding: 12px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-  }
-
-  .momentum tbody th,
-  .momentum tbody td,
-  .momentum tbody tr > :first-child,
-  .momentum tbody tr > :last-child {
-    width: auto;
-    height: auto;
-    padding: 0;
-    border: 0;
-    text-align: left;
-  }
-
-  .momentum tbody .m-topic,
-  .momentum tbody .m-spark,
-  .momentum tbody .m-wait {
-    grid-column: 1 / -1;
-  }
-
-  .momentum tbody td[data-label]::before {
-    content: attr(data-label);
-    display: block;
-    color: var(--ash);
-    font-size: 12px;
-    line-height: 16px;
-  }
-
-  .momentum tbody .m-value,
-  .momentum tbody .m-change,
-  .momentum tbody .m-spark,
-  .momentum tbody .m-wait {
-    text-align: left;
-  }
-
-  .suggestions {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .suggestion {
-    padding: 12px;
-  }
-
-  .trophy-grid,
-  .trophy-column:last-child {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .trophy-column {
-    gap: 8px;
-  }
-
-  .trophy-card {
-    padding: 12px;
-  }
-
-  .drawer {
-    width: 100vw;
-    border-left: 0;
-  }
-
-  .drawer-bar {
-    height: 52px;
-    padding: 0 16px;
-  }
-
-  .drawer-bar .button {
-    height: 36px;
-    padding: 0 12px;
-  }
-
-  .drawer-body {
-    --thumb: 112px;
-    padding: 16px;
-  }
-
-  .analysis-head {
-    gap: 12px;
-  }
-
-  .analysis-title .byline {
-    display: grid;
-  }
-
-  .analysis-score {
-    margin-top: 12px;
   }
 }
 
@@ -5838,5 +5280,358 @@ h3 {
 
   .related-views {
     display: none;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Secciones de investigación: formularios, canales y temas en chips, tabla de Comparar, vacíos
+   ------------------------------------------------------------------------------------------------ */
+
+/* Formularios de sección (seguir un tema, buscar en YouTube, crear colección): un campo grande */
+.ask {
+  gap: 8px;
+}
+
+.ask-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ask input {
+  flex: 1 1 260px;
+  height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--line);
+  background-color: var(--surface);
+  font-size: 15px;
+}
+
+.ask input:focus-visible {
+  border-color: var(--line-strong);
+}
+
+.ask .button,
+.ask .tool {
+  height: 44px;
+}
+
+.ask .tool select {
+  height: 42px;
+}
+
+.ask > .button[type='submit'] {
+  background: var(--text);
+  color: var(--on-light);
+}
+
+.ask > .button[type='submit']:hover:not(:disabled) {
+  background: #fff;
+}
+
+.ask-options-toggle {
+  background: var(--raised);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.form-foot,
+.ask-panel,
+.ask + .form-note,
+.ask-panel + .form-note {
+  padding-left: 20px;
+}
+
+.form-foot {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.form-note {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.form-error {
+  margin: 12px 0 0;
+  box-shadow: inset 0 0 0 1px var(--coral-line);
+}
+
+.form-foot + .filters,
+.form-note + .filters,
+.form-error + .filters,
+.form-foot + .results-head,
+.form-note + .results-head {
+  margin-top: 28px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+
+.form-foot + .vgrid,
+.form-foot + .empty,
+.form-note + .empty,
+.form-error + .empty {
+  margin-top: 28px;
+}
+
+/* Canales y temas que sigues: píldoras con avatar; elegido, relleno claro */
+.chips {
+  gap: 8px;
+}
+
+.chip {
+  height: var(--control);
+  border-radius: var(--r-pill);
+  background: var(--raised);
+}
+
+.chip > button,
+.chip > button:hover,
+.chip:hover > button {
+  border: 0;
+  background: none;
+}
+
+.chip:hover {
+  background: var(--raised-hover);
+}
+
+.chip-main {
+  gap: 8px;
+  padding: 0 14px 0 6px;
+  border-radius: var(--r-pill);
+}
+
+.chip-main:not(:last-child) {
+  padding-right: 4px;
+  border-radius: var(--r-pill) 0 0 var(--r-pill);
+}
+
+.chip-plain {
+  padding-left: 14px;
+}
+
+.chip .avatar {
+  width: 24px;
+  height: 24px;
+}
+
+.chip .avatar-blank {
+  border: 0;
+  background: var(--base);
+}
+
+.chip-subs {
+  color: var(--text-2);
+}
+
+.chip-mine,
+.chip-remove {
+  width: 32px;
+  color: var(--text-2);
+}
+
+.chip-remove {
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.chip-mine:last-child {
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.chip-on,
+.chip-on:hover {
+  background: var(--text);
+}
+
+.chip-on .chip-name,
+.chip-on .chip-subs,
+.chip-on .chip-mine,
+.chip-on .chip-remove {
+  color: var(--on-light);
+}
+
+.chip-on .badge {
+  background: var(--on-light);
+  color: var(--text);
+}
+
+.avatar-check {
+  background: var(--on-light);
+  color: var(--text);
+}
+
+.chips:has(.chip-on) .chip:not(.chip-on) .chip-name {
+  color: var(--text-2);
+}
+
+.channels .section-head h2 {
+  font: 600 18px/1.2 var(--display);
+}
+
+.channels .section-sub {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.channel-row {
+  margin-top: 14px;
+}
+
+.add input {
+  height: var(--control);
+  background-color: var(--surface);
+  border-color: var(--line);
+}
+
+/* Comparar canales: la tabla en un panel, sin bordes por fuera */
+.table-hint {
+  color: var(--text-2);
+}
+
+.table-wrap {
+  border: 0;
+  border-radius: var(--r-panel);
+  background: var(--surface);
+}
+
+.channel-table {
+  font-size: 14px;
+}
+
+.channel-table thead th {
+  color: var(--text-3);
+}
+
+.channel-table thead button:hover {
+  background: var(--raised);
+}
+
+.channel-table th,
+.channel-table td {
+  height: 60px;
+}
+
+.channel-table .avatar {
+  width: 28px;
+  height: 28px;
+}
+
+.channel-link {
+  border-radius: 8px;
+}
+
+.best.tier-extreme .best-score {
+  color: var(--coral);
+}
+
+/* Estados vacíos: una invitación a actuar, en un panel tranquilo */
+.empty {
+  margin-top: 8px;
+  padding: 56px 24px;
+  border: 0;
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.empty-title {
+  margin-bottom: 6px;
+  color: var(--text);
+  font: 600 20px/1.25 var(--display);
+  letter-spacing: -0.01em;
+}
+
+.empty .button {
+  margin-top: 20px;
+}
+
+.empty-actions .button {
+  margin-top: 0;
+}
+
+.empty-actions {
+  margin-top: 20px;
+}
+
+.more {
+  margin-top: 32px;
+}
+
+/* Guardados: la colección de cada video, como un chip pequeño bajo sus datos */
+.vcard-actions .tool-small {
+  height: 32px;
+}
+
+.vcard-actions .tool-small select {
+  height: 30px;
+  padding-left: 12px;
+  font-size: 13px;
+}
+
+.vcard-actions .followed {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .ask input {
+    flex-basis: 100%;
+  }
+
+  .ask > .button,
+  .ask > .tool {
+    flex: 1;
+  }
+
+  .form-foot,
+  .ask-panel,
+  .ask + .form-note,
+  .ask-panel + .form-note {
+    padding-left: 0;
+  }
+
+  .table-sort {
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    width: fit-content;
+  }
+
+  .table-sort .tool-label {
+    padding-left: 14px;
+    font-weight: 400;
+  }
+
+  .table-sort select {
+    font-size: 14px;
+  }
+
+  .channel-table tbody tr {
+    border: 0;
+    border-radius: var(--r-panel);
+    background: var(--surface);
+  }
+
+  .table-wrap {
+    background: none;
+  }
+
+  .empty {
+    padding: 40px 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .channel-table tbody .col-channel,
+  .channel-table tbody .channel-link {
+    background: transparent;
   }
 }
