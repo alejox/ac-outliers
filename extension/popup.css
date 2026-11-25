@@ -265,3 +265,14 @@ input[role='switch']:checked::after {
     transition: none;
   }
 }
+
+.foot-link {
+  display: block;
+  margin-top: 12px;
+  color: var(--smoke);
+  font-size: 12px;
+  text-align: center;
+}
+.foot-link:hover {
+  color: var(--ash);
+}
