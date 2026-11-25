@@ -101,3 +101,24 @@ export function changeLabel(changes: { kind: 'title' | 'thumbnail'; at: string }
   const days = (Date.now() - new Date(changes[0]!.at).getTime()) / 86_400_000
   return `${what} ${formatAge(days)}`
 }
+
+/** Insignia del score sobre la miniatura: neutra, clara desde 5× y coral desde 10× (el único acento). */
+export function badgeTier(score: number | null): 'none' | 'base' | 'mid' | 'hot' {
+  if (score === null) return 'none'
+  if (score >= 10) return 'hot'
+  if (score >= 5) return 'mid'
+  return 'base'
+}
+
+const THUMB_SKIP = new Set(
+  'un una unos unas el la los las lo de del al a en con y o que qué mi mis tu tus su sus por para sin se es esto este esta así como cómo ya no me te le'.split(' '),
+)
+
+/** Dos palabras del título para la miniatura de relleno (cuando YouTube no da imagen). */
+export function thumbWord(title: string) {
+  const words = title.replace(/[¿?¡!:,.()"“”]/g, ' ').split(/\s+/).filter(Boolean)
+  const n = words.findIndex((w) => /^\d/.test(w))
+  if (n >= 0 && words[n + 1]) return `${words[n]} ${words[n + 1]}`
+  const kept = words.filter((w) => !THUMB_SKIP.has(w.toLowerCase()))
+  return (kept.length ? kept : words).slice(0, 2).join(' ')
+}

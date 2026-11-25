@@ -137,7 +137,7 @@ const MODE_LEDES: Record<Mode, string> = {
   saved: 'Los videos que guardaste desde la app o desde YouTube, con el score que tenían ese día.',
   mine: 'De dónde vienen las vistas de tu canal, qué buscan para encontrarte y qué videos te recomiendan.',
 }
-const view = ref<'list' | 'grid'>('list')
+const view = ref<'list' | 'grid'>('grid')
 // En celular las secciones se desplazan en horizontal: la activa siempre queda a la vista.
 watch(mode, () =>
   nextTick(() =>
