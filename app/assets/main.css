@@ -5554,6 +5554,36 @@ h3 {
   color: var(--text);
 }
 
+.lp-photo {
+  margin-bottom: 40px;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.lp-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 540px;
+  object-fit: cover;
+  object-position: 50% 40%;
+}
+
+.lp-who-img {
+  display: block;
+  width: 120px;
+  height: 80px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.lp-who-img-crop {
+  object-position: 22% 40%;
+}
+
 .lp-who {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

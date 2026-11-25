@@ -8,14 +8,14 @@ const enter = computed(() => (props.google ? '/api/auth/google' : '#entrar'))
 
 // Demostración: una página de resultados de YouTube de ejemplo, con y sin el score.
 const demo = [
-  { score: 1.1, title: 'Mi Stream Deck por 15 dólares', channel: 'Taller de Directos', views: '3,6 mil', duration: '8:40' },
+  { score: 1.1, title: 'Mi Stream Deck por 15 dólares', src: '/images/thumbnails/thumb-06.webp', channel: 'Taller de Directos', views: '3,6 mil', duration: '8:40' },
   { score: 13, title: 'Probé un Stream Deck casero durante 30 días', channel: 'Código en Pijama', views: '134,2 mil', duration: '14:08' },
-  { score: 0.8, title: 'Stream Deck casero con Arduino, parte 2', channel: 'Byte a Byte', views: '14,5 mil', duration: '18:02' },
+  { score: 0.8, title: 'Stream Deck casero con Arduino, parte 2', src: '/images/thumbnails/thumb-03.webp', channel: 'Byte a Byte', views: '14,5 mil', duration: '18:02' },
   { score: 5.9, title: 'Convertí un teclado viejo en Stream Deck', channel: 'La Terminal de Nico', views: '752,2 mil', duration: '5:18' },
   { score: 1.4, title: 'Los mejores botones para tu directo', channel: 'Pixel Forja', views: '67,1 mil', duration: '11:20' },
-  { score: 25, title: '¿Vale la pena un Stream Deck casero?', channel: 'Código en Pijama', views: '255,9 mil', duration: '15:59' },
+  { score: 25, title: '¿Vale la pena un Stream Deck casero?', src: '/images/thumbnails/thumb-08.webp', channel: 'Código en Pijama', views: '255,9 mil', duration: '15:59' },
   { score: 2.3, title: 'Macros en OBS sin gastar nada', channel: 'Taller de Directos', views: '7,6 mil', duration: '9:55' },
-  { score: 0.6, title: 'Mi escritorio de streaming 2026', channel: 'Pixel Forja', views: '28,7 mil', duration: '21:07' },
+  { score: 0.6, title: 'Mi escritorio de streaming 2026', src: '/images/thumbnails/thumb-05.webp', channel: 'Pixel Forja', views: '28,7 mil', duration: '21:07' },
 ]
 const showScore = ref(true)
 // Un solo momento al cargar: la página aparece sin score y el score se enciende. Sin movimiento si así se pidió.
@@ -130,7 +130,7 @@ const faq = [
             </div>
             <ol class="lp-demo-grid">
               <li v-for="(v, i) in demo" :key="v.title" class="lp-demo-item" :class="{ 'is-low': v.score < 2 }" :style="{ '--i': i }">
-                <VideoThumb :title="v.title" :seed="v.channel" :score="v.score" :duration="v.duration" />
+                <VideoThumb :src="v.src" :title="v.title" :seed="v.channel" :score="v.score" :duration="v.duration" />
                 <p class="lp-demo-title">{{ v.title }}</p>
                 <p class="lp-demo-meta">{{ v.channel }} · {{ v.views }} vistas</p>
               </li>
@@ -259,10 +259,13 @@ const faq = [
       <section class="lp-sec" aria-labelledby="quien-title">
         <div class="lp-wrap">
           <div class="lp-head"><h2 id="quien-title">Hecho para quien decide qué se sube</h2></div>
+          <figure class="lp-photo">
+            <img src="/images/audience/audience-creador.webp" width="1600" height="900" loading="lazy" decoding="async" alt="Un creador en su escritorio con AC Outliers abierto en el monitor">
+          </figure>
           <ul class="lp-who">
-            <li><h3>Creadores que planean su próximo video</h3><p>Antes de grabar, mira qué ideas rindieron varias veces lo normal en canales de tu tema.</p></li>
-            <li><h3>Canales pequeños</h3><p>El score es relativo a cada canal. Un 8× en un canal de 3 mil suscriptores cuenta igual que en uno de 3 millones.</p></li>
-            <li><h3>Editores y diseñadores de miniaturas</h3><p>Guarda en colecciones los títulos y miniaturas que despegaron y revisa cuándo un creador los cambió.</p></li>
+            <li><img src="/images/audience/audience-canal-pequeno.webp" class="lp-who-img" width="120" height="80" loading="lazy" decoding="async" alt=""><h3>Creadores que planean su próximo video</h3><p>Antes de grabar, mira qué ideas rindieron varias veces lo normal en canales de tu tema.</p></li>
+            <li><img src="/images/audience/audience-creador.webp" class="lp-who-img lp-who-img-crop" width="120" height="80" loading="lazy" decoding="async" alt=""><h3>Canales pequeños</h3><p>El score es relativo a cada canal. Un 8× en un canal de 3 mil suscriptores cuenta igual que en uno de 3 millones.</p></li>
+            <li><img src="/images/audience/audience-disenador.webp" class="lp-who-img" width="120" height="80" loading="lazy" decoding="async" alt=""><h3>Editores y diseñadores de miniaturas</h3><p>Guarda en colecciones los títulos y miniaturas que despegaron y revisa cuándo un creador los cambió.</p></li>
           </ul>
           <p class="lp-notfor"><b>Para qué no sirve:</b> no genera títulos, guiones ni miniaturas, y no usa IA. Te da cifras claras para que la decisión creativa sea tuya.</p>
         </div>
