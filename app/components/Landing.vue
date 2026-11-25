@@ -302,7 +302,8 @@ const faq = [
               <ul>
                 <li v-for="(f, i) in pro" :key="f" :class="{ 'is-lead': i === 0 }">{{ f }}</li>
               </ul>
-              <a class="button lp-plan-cta" :href="enter">Elegir Pro</a>
+              <span class="button lp-plan-cta is-soon" aria-disabled="true">Próximamente</span>
+              <p class="lp-soon-note">Mientras tanto, todas las funciones de Pro están abiertas en el plan Gratis.</p>
             </article>
           </div>
         </div>

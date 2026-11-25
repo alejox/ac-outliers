@@ -5741,6 +5741,21 @@ h3 {
   background: #000;
 }
 
+.lp-plan-pro .lp-plan-cta.is-soon,
+.lp-plan-pro .lp-plan-cta.is-soon:hover {
+  background: transparent;
+  color: var(--on-light);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.25);
+  cursor: default;
+}
+
+.lp-soon-note {
+  margin-top: 12px;
+  color: rgb(0 0 0 / 0.6);
+  font-size: 14px;
+  text-align: center;
+}
+
 .lp-plan-pro :focus-visible {
   outline-color: var(--on-light);
 }
