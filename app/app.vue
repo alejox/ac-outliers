@@ -482,7 +482,7 @@ async function logIn() {
 </script>
 
 <template>
-  <div class="page" :class="{ 'page-login': needsLogin }">
+  <div class="page" :class="{ 'page-public': needsLogin }">
     <header v-if="!needsLogin" class="nav">
       <a class="brand" href="/">
         <svg class="brand-mark" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
@@ -541,7 +541,8 @@ async function logIn() {
       </div>
     </header>
 
-    <form v-if="needsLogin" class="login" @submit.prevent="logIn">
+    <Landing v-if="needsLogin" :google="Boolean(me?.google)">
+    <form class="login" @submit.prevent="logIn">
       <p class="login-brand">
         <svg class="brand-mark" viewBox="0 0 20 20" width="32" height="32" aria-hidden="true">
           <rect width="20" height="20" rx="6" fill="#ff6363" />
@@ -552,7 +553,7 @@ async function logIn() {
       </p>
       <p class="login-lede">Videos que rindieron muy por encima de lo normal en su propio canal.</p>
       <template v-if="me?.google">
-        <a class="button button-primary login-google" href="/api/auth/google">
+        <a class="button login-google" href="/api/auth/google">
           <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
             <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
             <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
@@ -567,12 +568,13 @@ async function logIn() {
       <template v-if="!me?.google || me?.password">
         <label for="password">Contraseña</label>
         <input id="password" v-model="password" type="password" autocomplete="current-password" :disabled="loggingIn" />
-        <button class="button" :class="{ 'button-primary': !me?.google }" type="submit" :disabled="loggingIn">
+        <button class="button" type="submit" :disabled="loggingIn">
           {{ loggingIn ? 'Entrando' : 'Entrar' }}
         </button>
       </template>
       <p v-if="loginError" class="notice notice-error" role="alert">{{ loginError }}</p>
     </form>
+    </Landing>
 
     <div v-if="!needsLogin" class="masthead">
       <h1>{{ MODE_TITLES[mode] }}</h1>
