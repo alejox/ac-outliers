@@ -119,12 +119,12 @@ export function applyFilters(
   return list.sort((a, b) => key[f.sort](b) - key[f.sort](a))
 }
 
-// Palabras vacías en español e inglés, ya sin tildes.
+// Palabras vacías en español e inglés, escritas sin tildes (se comparan normalizadas).
 const STOPWORDS = new Set(
-  `a al algo ante asi aun bien cada casi como con contra cual cuando de del desde donde dos el ella ellos en entre era es esa
-ese eso esta estan estas este esto estos fue ha hace hacer hasta hay la las le les lo los mas me mejor mi mis mucho muy nada ni
-no nos nuevo nueva o para pero por porque que quien se sea ser si sin sobre solo son su sus tambien te tiene todo todos tu tus
-un una uno unos vs y ya yo
+  `a al algo algun alguna ante antes asi aun aunque bien cada casi como con contra cual cuando de del desde despues donde dos
+durante el ella ellos en entre era es esa ese eso esta estan estas este esto estos fue ha hace hacer hasta hay la las le les lo
+los mas me mejor mi mis mucho muy nada ni no nos nuevo nueva o otra otro para pero poco por porque que quien se sea ser si sin
+sobre solo son su sus tambien tan te tiene todo todos tu tus un una uno unos vez vs y ya yo
 about after all an and are as at be best but by can do for from get has have how i if in into is it its just more most my new
 no not of on one or our out so than that the their them these they this to up was we what when which who why will with you your`
     .split(/\s+/)
@@ -133,22 +133,30 @@ no not of on one or our out so than that the their them these they this to up wa
 
 /**
  * Palabras que más se repiten en un grupo de títulos. Cuenta cada palabra una vez por título
- * y solo devuelve las que aparecen en al menos `minVideos`.
+ * y solo devuelve las que aparecen en al menos `minVideos`. Las compara sin tildes ni mayúsculas,
+ * pero muestra la forma en minúsculas más usada en los títulos ("guía", no "guia").
  */
 export function topWords(titles: string[], limit = 8, minVideos = 3): { word: string; count: number }[] {
   const counts = new Map<string, number>()
+  const spellings = new Map<string, Map<string, number>>()
   for (const title of titles) {
-    const words = new Set(
-      normalizeText(title)
-        .split(/[^a-z0-9ñ+#.]+/)
-        .map((w) => w.replace(/^[.#+]+|[.]+$/g, ''))
-        .filter((w) => w.length >= 3 && !STOPWORDS.has(w) && !/^\d+$/.test(w)),
-    )
-    for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1)
+    const seen = new Set<string>()
+    for (const raw of title.toLowerCase().split(/[^\p{L}\p{N}+#.]+/u)) {
+      const word = raw.replace(/^[.#+]+|[.]+$/g, '')
+      const key = normalizeText(word)
+      if (key.length < 3 || STOPWORDS.has(key) || /^\d+$/.test(key) || seen.has(key)) continue
+      seen.add(key)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+      const forms = spellings.get(key) ?? new Map<string, number>()
+      forms.set(word, (forms.get(word) ?? 0) + 1)
+      spellings.set(key, forms)
+    }
   }
+  const display = (key: string) =>
+    [...spellings.get(key)!].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0]![0]
   return [...counts]
     .filter(([, count]) => count >= minVideos)
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, limit)
-    .map(([word, count]) => ({ word, count }))
+    .map(([key, count]) => ({ word: display(key), count }))
 }
