@@ -171,6 +171,8 @@ function go(next: Mode) {
   if (import.meta.client) window.scrollTo({ top: 0 })
 }
 onMounted(() => {
+  // Si Google devolvió un error al entrar, se lleva a la vista el formulario donde se explica.
+  if (needsLogin.value && route.query.login) document.getElementById('entrar')?.scrollIntoView({ block: 'center' })
   const closeMore = (e: Event) => {
     if (moreOpen.value && !(e.target as HTMLElement).closest('.tab-more')) moreOpen.value = false
   }
@@ -514,14 +516,8 @@ async function logIn() {
 </script>
 
 <template>
-  <div v-if="needsLogin" class="page page-public">
-    <Landing v-if="needsLogin" :google="Boolean(me?.google)">
+  <Landing v-if="needsLogin" :google="Boolean(me?.google)">
     <form class="login" @submit.prevent="logIn">
-      <p class="login-brand">
-        <BrandMark :size="36" />
-        <span>AC Outliers</span>
-      </p>
-      <p class="login-lede">Videos que rindieron muy por encima de lo normal en su propio canal.</p>
       <template v-if="me?.google">
         <a class="button login-google" href="/api/auth/google">
           <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
@@ -545,7 +541,6 @@ async function logIn() {
       <p v-if="loginError" class="notice notice-error" role="alert">{{ loginError }}</p>
     </form>
     </Landing>
-  </div>
 
   <div v-else class="shell">
     <aside class="side" aria-label="Navegación">
