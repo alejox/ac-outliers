@@ -66,7 +66,8 @@ Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de 
 - **Analizar**: cada video en lista tiene el botón "Analizar", que abre un panel con por qué destaca frente
   a los demás videos guardados de su canal en el mismo formato (ver [Analizar](#analizar)).
 - **Guardados**: cada video en lista tiene "Guardar"; también se guarda desde YouTube con la extensión. Se
-  guarda la foto del video con su score de ese día, así que verlos no gasta cuota.
+  guarda la foto del video con su score de ese día, así que verlos no gasta cuota. Se agrupan en
+  **colecciones**: cada video va en una o en ninguna, y eliminar una colección no borra sus videos.
 - **Comparar canales**: una fila por canal con suscriptores, vistas normales, alcance (vistas normales
   ÷ suscriptores), subidas en 30 días, cuántos videos llegaron a 2× en 90 días y su mejor video.
 

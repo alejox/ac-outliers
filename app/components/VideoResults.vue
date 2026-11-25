@@ -40,6 +40,9 @@ const visible = computed(() => props.videos.slice(0, shown.value))
       <template v-if="$slots.action" #default>
         <slot name="action" :video="v" />
       </template>
+      <template v-if="$slots.meta" #meta>
+        <slot name="meta" :video="v" />
+      </template>
     </VideoRow>
   </ol>
 
