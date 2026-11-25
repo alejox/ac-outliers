@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  defaultFilters,
   DURATION_OPTIONS,
   SIZE_OPTIONS,
   VIEWS_OPTIONS,
@@ -11,12 +12,17 @@ import {
 const filters = defineModel<FilterState>({ required: true })
 const view = defineModel<'list' | 'grid'>('view', { required: true })
 
-defineProps<{
+const props = defineProps<{
   /** Categorías que existen entre los videos que se están filtrando. */
   categories: { id: string; name: string }[]
   showFormat?: boolean
   showPeriod?: boolean
+  /** Valores de partida de esta sección: un filtro que se aparta de ellos se marca como activo. */
+  defaults?: FilterState
 }>()
+
+const base = computed(() => props.defaults ?? defaultFilters())
+const changed = (key: keyof FilterState) => filters.value[key] !== base.value[key]
 
 const open = ref(false)
 const extra = computed(() => extraFilterCount(filters.value))
@@ -49,7 +55,7 @@ function clearExtra() {
         </button>
       </div>
 
-      <label v-if="showPeriod" class="tool tool-select">
+      <label v-if="showPeriod" class="tool tool-select" :class="{ 'is-active': changed('periodDays') }">
         <span class="tool-label" aria-hidden="true"><span class="tool-short">Fecha</span><span class="tool-full">Publicados en</span></span>
         <select v-model.number="filters.periodDays" aria-label="Publicados en">
           <option :value="7">7 días</option>
@@ -60,7 +66,7 @@ function clearExtra() {
         </select>
       </label>
 
-      <label class="tool tool-select">
+      <label class="tool tool-select" :class="{ 'is-active': changed('minScore') }">
         <span class="tool-label" aria-hidden="true"><span class="tool-short">Score</span><span class="tool-full">Score mínimo</span></span>
         <select v-model.number="filters.minScore" aria-label="Score mínimo">
           <option :value="0">Sin mínimo</option>
@@ -72,7 +78,7 @@ function clearExtra() {
         </select>
       </label>
 
-      <label class="tool tool-select">
+      <label class="tool tool-select" :class="{ 'is-active': changed('sort') }">
         <span class="tool-label" aria-hidden="true"><span class="tool-short">Orden</span><span class="tool-full">Ordenar por</span></span>
         <select v-model="filters.sort" aria-label="Ordenar por">
           <option value="score">Score</option>
@@ -83,13 +89,12 @@ function clearExtra() {
         </select>
       </label>
 
-      <label class="tool tool-search">
+      <label class="tool tool-search" :class="{ 'is-active': filters.title.trim() !== '' }">
         <span class="sr-only">Buscar en títulos</span>
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-          <circle cx="7" cy="7" r="4.25" fill="none" stroke="currentColor" stroke-width="1.5" />
-          <path d="m10.25 10.25 3.25 3.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M2.75 4.25h10.5M4.75 8h6.5M6.75 11.75h2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         </svg>
-        <input v-model="filters.title" type="search" placeholder="OBS, Claude, tutorial" autocomplete="off" />
+        <input v-model="filters.title" type="search" placeholder="Filtrar por título" autocomplete="off" />
       </label>
 
       <button class="button more-filters" type="button" :aria-expanded="open" @click="open = !open">

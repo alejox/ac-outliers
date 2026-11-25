@@ -255,9 +255,9 @@ button:disabled {
 }
 
 .masthead h1 {
-  font-size: 56px;
+  font-size: 40px;
   font-weight: 500;
-  line-height: 64px;
+  line-height: 48px;
 }
 
 .lede {
@@ -272,7 +272,7 @@ button:disabled {
 .banners {
   display: grid;
   gap: 8px;
-  margin-top: 40px;
+  margin-top: 32px;
 }
 
 .banner {
@@ -511,9 +511,8 @@ button:disabled {
 /* Inputs y selects */
 
 .add input,
-.login input,
-.field input,
-.field select {
+.ask input,
+.login input {
   height: var(--control);
   border: 1px solid var(--line-strong);
   border-radius: 8px;
@@ -525,8 +524,8 @@ button:disabled {
 }
 
 .add input,
-.login input,
-.field input {
+.ask input,
+.login input {
   width: 100%;
   min-width: 0;
   padding: 0 12px;
@@ -534,28 +533,23 @@ button:disabled {
 
 .add input {
   flex: 1;
+}
+
+.add input,
+.ask input {
   font-size: 13px;
 }
 
 .add input:hover,
-.login input:hover,
-.field input:hover,
-.field select:hover {
+.ask input:hover,
+.login input:hover {
   border-color: var(--border);
 }
 
 .add input::placeholder,
-.field input::placeholder {
+.ask input::placeholder {
   color: var(--ash);
   opacity: 1;
-}
-
-.field select {
-  padding: 0 32px 0 12px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239c9c9d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  appearance: none;
 }
 
 input:disabled,
@@ -636,7 +630,7 @@ input[type='search']::-webkit-search-cancel-button {
 /* Sección activa */
 
 .ranking {
-  margin-top: 48px;
+  margin-top: 32px;
   scroll-margin-top: 80px;
 }
 
@@ -826,35 +820,6 @@ input[type='search']::-webkit-search-cancel-button {
   color: var(--white);
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--ash);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.field-text {
-  flex: 1 1 224px;
-  min-width: 0;
-}
-
-.discover {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 16px;
-}
-
-.hint {
-  margin-top: 12px;
-  max-width: 720px;
-  color: var(--ash);
-  font-size: 12px;
-  line-height: 16px;
-}
-
 .followed {
   color: var(--ash);
   font-size: 12px;
@@ -899,14 +864,144 @@ input[type='search']::-webkit-search-cancel-button {
   color: var(--smoke);
 }
 
-.topics {
-  margin-top: 24px;
+/* Formularios de sección (seguir un tema, buscar en YouTube): el mismo campo que "Agregar canal",
+   con su nombre en blanco delante, los selectores de la barra y el botón al lado. */
+
+.ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-.chips + .toolbar,
-.hint + .toolbar,
-.notice + .toolbar {
-  margin-top: 32px;
+.ask-label {
+  flex: none;
+  width: 40px;
+  margin-right: 8px;
+  color: var(--ash);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.ask input {
+  flex: 1 1 200px;
+}
+
+/* Bajo el formulario, una sola línea: la nota de cuota en ash y, al final, los temas que sigues */
+/* Todo lo que cuelga del formulario (nota, temas, opciones, error) empieza en el borde del campo */
+.form-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 56px;
+}
+
+.form-foot .form-note {
+  margin-top: 0;
+}
+
+/* Temas que sigues: fichas de 28px, más ligeras que un botón, justo después de la nota */
+.topics .chip {
+  height: 28px;
+}
+
+.topics .chip-name {
+  font-weight: 400;
+}
+
+.topics .chip-main {
+  padding-left: 8px;
+}
+
+.topics .chip-remove {
+  width: 28px;
+}
+
+.form-note {
+  margin-top: 8px;
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+  text-wrap: pretty;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.ask-panel {
+  margin-top: 8px;
+  padding-left: 56px;
+}
+
+.ask + .form-note,
+.ask-panel + .form-note {
+  padding-left: 56px;
+}
+
+/* "Opciones" se ve como los selectores de la fila (relleno de campo y borde fino), no como botón */
+.ask-options-toggle {
+  gap: 6px;
+  padding: 0 10px 0 12px;
+  background: rgb(255 255 255 / 0.05);
+  color: var(--ash);
+  font-weight: 400;
+}
+
+.ask-options-toggle[aria-expanded='true'] {
+  color: var(--white);
+}
+
+.ask-options-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.ask-options-toggle .count {
+  margin-left: 0;
+}
+
+/* El error de una búsqueda: la franja de aviso, en coral, con el paso siguiente en ash */
+.form-error {
+  margin-top: 12px;
+  margin-left: 56px;
+}
+
+.form-error {
+  align-items: center;
+  color: var(--coral);
+}
+
+.form-error-text {
+  flex: 1;
+  color: var(--white);
+}
+
+.form-error-next {
+  color: var(--ash);
+}
+
+.form-error-action {
+  flex: none;
+  margin: -4px -4px -4px 0;
+}
+
+/* Dos grupos: el formulario de la sección arriba, los resultados y sus filtros abajo, separados por una línea */
+.form-foot + .toolbar,
+.form-note + .toolbar,
+.form-error + .toolbar {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.form-foot + .empty,
+.form-note + .empty,
+.form-error + .empty {
+  margin-top: 24px;
 }
 
 /* Encabezado de resultados: cuántos hay y, al lado, las palabras que se repiten */
@@ -929,6 +1024,7 @@ input[type='search']::-webkit-search-cancel-button {
   color: var(--ash);
   font-size: 13px;
   line-height: 20px;
+  text-wrap: balance;
 }
 
 .words {
@@ -1019,13 +1115,13 @@ input[type='search']::-webkit-search-cancel-button {
 
 .tile-value {
   color: var(--tone);
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
-  line-height: 24px;
+  line-height: 28px;
   font-variant-numeric: tabular-nums;
 }
 
-/* Siempre dos líneas de alto: todas las fichas miden lo mismo */
+/* Canal y vistas van siempre 8px bajo el título; las fichas de una fila miden lo mismo y el sobrante queda abajo */
 .tile-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1040,7 +1136,6 @@ input[type='search']::-webkit-search-cancel-button {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  margin-top: auto;
   padding-top: 8px;
   color: var(--ash);
   font-size: 12px;
@@ -1054,7 +1149,21 @@ input[type='search']::-webkit-search-cancel-button {
   text-overflow: ellipsis;
 }
 
-/* Tabla de canales */
+/* Tabla de canales: cifras a la derecha en columnas fijas; la columna ordenada se lee en blanco */
+
+.table-head .section-sub {
+  text-wrap: pretty;
+}
+
+.table-hint {
+  color: var(--ash);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.table-sort {
+  display: none;
+}
 
 .table-wrap {
   margin-top: 16px;
@@ -1066,18 +1175,33 @@ input[type='search']::-webkit-search-cancel-button {
 .channel-table {
   width: 100%;
   min-width: 832px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
+  line-height: 20px;
   font-variant-numeric: tabular-nums;
 }
 
 .channel-table th,
 .channel-table td {
-  padding: 8px 16px;
+  height: 56px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+.channel-table .is-num {
+  text-align: right;
+}
+
+.channel-table tr > :first-child {
+  padding-left: 16px;
+}
+
+.channel-table tr > :last-child {
+  padding-right: 16px;
 }
 
 .channel-table tbody tr:last-child th,
@@ -1086,33 +1210,59 @@ input[type='search']::-webkit-search-cancel-button {
 }
 
 .channel-table thead th {
+  height: 48px;
   padding-block: 4px;
-  color: var(--smoke);
+  color: var(--ash);
   font-size: 12px;
   font-weight: 400;
+  line-height: 16px;
 }
 
 .channel-table thead button {
+  position: relative;
+  overflow: visible;
+  display: inline-flex;
+  align-items: center;
   height: 28px;
-  padding: 0;
+  white-space: nowrap;
+  margin: 0 -4px;
+  padding: 0 4px;
   border: 0;
   border-radius: 6px;
   background: none;
   color: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  transition: color 0.15s, background-color 0.15s;
 }
 
 .channel-table thead button:hover {
+  background: var(--graphite);
   color: var(--white);
 }
 
-.channel-table thead th[aria-sort='descending'] button {
+/* La flecha solo aparece en la columna ordenada; en las cifras va antes del nombre para no romper el borde derecho */
+/* La flecha va fuera del flujo, a la izquierda del texto: el texto acaba justo donde acaban sus cifras */
+.sort-mark {
+  position: absolute;
+  top: 50%;
+  right: calc(100% - 2px);
+  margin-top: -6px;
+  visibility: hidden;
+}
+
+.channel-table thead .is-sorted button {
   color: var(--white);
   font-weight: 500;
 }
 
-.channel-table thead th[aria-sort='descending'] button::after {
-  content: ' ↓';
-  color: var(--ash);
+.channel-table thead .is-sorted .sort-mark {
+  visibility: visible;
+}
+
+.channel-table thead .col-best .sort-mark {
+  right: auto;
+  left: calc(100% - 2px);
 }
 
 .channel-table tbody th {
@@ -1123,49 +1273,125 @@ input[type='search']::-webkit-search-cancel-button {
   color: var(--ash);
 }
 
+.channel-table tbody td.is-sorted {
+  color: var(--white);
+}
+
+.channel-table tbody td .dim {
+  color: var(--smoke);
+}
+
+/* El nombre del canal queda fijo al desplazar la tabla en pantallas medianas */
+.channel-table .col-channel {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--void);
+}
+
 .channel-link {
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
   height: 28px;
   padding: 0;
   border: 0;
   border-radius: 6px;
   background: none;
+  color: var(--white);
   font-weight: inherit;
+  text-align: left;
 }
 
-.channel-link:hover span:last-child {
+.channel-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-link:hover .channel-name {
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration-color: var(--ash);
+  text-underline-offset: 4px;
+}
+
+/* El mejor video se queda con el resto del ancho; su título va en una línea */
+/* Anchos fijos a la medida de cada encabezado; el mejor video se queda con el resto */
+.channel-table .col-channel {
+  width: 184px;
+}
+
+.channel-table .col-subs {
+  width: 96px;
+}
+
+.channel-table .col-baseline {
+  width: 112px;
+}
+
+.channel-table .col-reach {
+  width: 80px;
+}
+
+.channel-table .col-uploads {
+  width: 96px;
+}
+
+.channel-table .col-hits {
+  width: 112px;
 }
 
 .channel-table .col-best {
-  width: 30%;
-  min-width: 256px;
-  white-space: normal;
+  width: auto;
 }
 
-.channel-table td.col-best a {
-  --tone: var(--white);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+.channel-table td.col-best {
+  max-width: 0;
+}
+
+/* Mejor video: la cifra en una columna fija alineada al borde del encabezado, el título a su lado */
+.best {
+  --tone: var(--ash);
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 16px;
+  align-items: baseline;
   color: var(--ash);
-  font-size: 13px;
-  line-height: 20px;
   text-decoration: none;
 }
 
-.channel-table td.col-best a:hover {
+.best-score {
+  color: var(--tone);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.best-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-sorted .best-title {
   color: var(--white);
 }
 
-.channel-table td.col-best strong {
-  margin-right: 4px;
-  color: var(--tone);
-  font-weight: 600;
+.best:hover .best-title {
+  color: var(--white);
+  text-decoration: underline;
+  text-decoration-color: var(--ash);
+  text-underline-offset: 4px;
+}
+
+.best.tier-above,
+.best.tier-high {
+  --tone: var(--white);
+}
+
+.best.tier-extreme {
+  --tone: var(--coral);
 }
 
 /* Fichas de video: cabecera con miniatura, título y acción; score con su regla; cifras */
@@ -1206,23 +1432,9 @@ input[type='search']::-webkit-search-cancel-button {
   --bar: var(--white);
 }
 
-.channel-table td.col-best a.tier-above,
-.channel-table td.col-best a.tier-high {
-  --tone: var(--white);
-}
-
-.channel-table td.col-best a.tier-extreme {
-  --tone: var(--coral);
-}
-
-.channel-table td.col-best a.tier-normal,
-.channel-table td.col-best a.tier-none {
-  --tone: var(--ash);
-}
-
 /* Dos ejes por ficha: el de la miniatura y el del título. Score, regla y cifras se alinean a ellos */
 .video {
-  --thumb: 112px;
+  --thumb: 96px;
 }
 
 .video-head {
@@ -1264,6 +1476,10 @@ input[type='search']::-webkit-search-cancel-button {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.video .thumb-blank {
+  font-size: 20px;
 }
 
 .thumb-blank {
@@ -1357,7 +1573,8 @@ input[type='search']::-webkit-search-cancel-button {
   grid-template-columns: var(--thumb) minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  height: 32px;
+  height: 28px;
+  margin-top: -8px;
 }
 
 .video-action {
@@ -1373,7 +1590,7 @@ input[type='search']::-webkit-search-cancel-button {
   color: var(--tone);
   font-size: 24px;
   font-weight: 600;
-  line-height: 32px;
+  line-height: 28px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1469,7 +1686,7 @@ input[type='search']::-webkit-search-cancel-button {
 
 .empty {
   margin-top: 16px;
-  padding: 48px 24px;
+  padding: 24px;
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--ash);
@@ -1485,6 +1702,19 @@ input[type='search']::-webkit-search-cancel-button {
 
 .empty .button {
   margin-top: 16px;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-top: 16px;
+}
+
+.empty-actions .button {
+  margin-top: 0;
 }
 
 .empty-title {
@@ -1639,48 +1869,9 @@ input[type='search']::-webkit-search-cancel-button {
     flex: 1 1 100%;
   }
 
-  .chips {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .topics {
-    display: flex;
-  }
-
-  .channel-row .chip {
-    height: 44px;
-  }
-
-  .channel-row .chip-main {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 24px minmax(0, 1fr);
-    gap: 0 8px;
-    align-content: center;
-    padding-left: 8px;
-    text-align: left;
-  }
-
-  .channel-row .avatar {
-    grid-row: 1 / 3;
-    align-self: center;
-    width: 24px;
-    height: 24px;
-  }
-
-  .channel-row .chip-name {
-    line-height: 16px;
-  }
-
-  .channel-row .chip-subs {
-    grid-column: 2;
-    font-size: 11px;
-    line-height: 16px;
-  }
-
-  .discover .button {
-    flex: 1 1 100%;
+  /* Canales y temas: la misma ficha de una línea, del ancho de su contenido */
+  .chip {
+    max-width: 100%;
   }
 
   .ranking {
@@ -1689,9 +1880,7 @@ input[type='search']::-webkit-search-cancel-button {
 
   /* 16px evita el zoom automático de iOS al enfocar */
   .add input,
-  .login input,
-  .field input,
-  .field select {
+  .login input {
     font-size: 16px;
   }
 
@@ -1721,9 +1910,14 @@ input[type='search']::-webkit-search-cancel-button {
     flex: none;
   }
 
-  /* Sin formato, vista, buscador y "Más filtros" caben en una fila */
+  /* Sin formato: vista y "Más filtros" en la primera fila, el buscador entero en la segunda */
+  .toolbar:not(:has(.format)) .more-filters {
+    order: 2;
+    margin-left: auto;
+  }
+
   .toolbar:not(:has(.format)) .tool-search {
-    flex-basis: 96px;
+    flex-basis: 100%;
   }
 
   .toolbar .format {
@@ -1819,20 +2013,195 @@ input[type='search']::-webkit-search-cancel-button {
     margin: 0;
   }
 
-  .discover .field-text {
-    flex-basis: 100%;
+  /* Formularios de sección: cada nombre sobre su control y todo a lo ancho, desde el mismo borde */
+  .ask {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 
-  .discover .field {
-    flex: 1 1 128px;
+  .ask-label {
+    margin: 0 0 -4px;
+  }
+
+  .ask .tool-select {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .ask .tool-select .tool-label {
+    padding: 0;
+    color: var(--ash);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+  }
+
+  .ask input {
+    flex: none;
+  }
+
+  .ask input,
+  .ask select {
+    font-size: 16px;
+    font-weight: 400;
+  }
+
+  .ask .button {
+    font-size: 14px;
+  }
+
+  .ask-label {
+    width: auto;
+  }
+
+  .form-foot,
+  .ask-panel,
+  .ask + .form-note,
+  .ask-panel + .form-note {
+    padding-left: 0;
+  }
+
+  .form-error {
+    margin-left: 0;
+  }
+
+  .ask .ask-options-toggle {
+    align-self: flex-start;
+    height: 36px;
+    margin-left: -8px;
+  }
+
+  /* Comparar: los encabezados se vuelven fichas para ordenar y cada canal una ficha con sus cifras */
+  .table-wrap {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .channel-table,
+  .channel-table thead,
+  .channel-table tbody {
+    display: block;
     min-width: 0;
   }
 
-  .field select {
-    width: 100%;
-    padding-left: 8px;
-    padding-right: 24px;
-    background-position: right 8px center;
+  .channel-table thead {
+    display: none;
+  }
+
+  /* Como los formularios: nombre arriba, control a todo lo ancho */
+  .table-sort {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    margin-top: 12px;
+  }
+
+  .table-sort .tool-label {
+    padding: 0;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+  }
+
+  .table-sort select {
+    font-size: 16px;
+  }
+
+  .channel-table tbody {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .channel-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .channel-table tbody th,
+  .channel-table tbody td,
+  .channel-table tbody td.is-num {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .channel-table tbody tr > :first-child,
+  .channel-table tbody tr > :last-child {
+    padding-inline: 0;
+  }
+
+  .channel-table tbody .col-channel {
+    grid-column: 1 / -1;
+  }
+
+  .channel-link {
+    max-width: 100%;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .channel-link .avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .channel-table tbody td {
+    grid-column: span 2;
+    min-width: 0;
+  }
+
+
+  .channel-table tbody .col-best {
+    grid-column: 1 / -1;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  .channel-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    overflow: hidden;
+    color: var(--ash);
+    font-size: 12px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+  }
+
+  .channel-table tbody td.is-sorted::before {
+    color: var(--white);
+  }
+
+  .channel-table tbody .col-best::before {
+    margin-bottom: 4px;
+  }
+
+  .best {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .best-score {
+    text-align: left;
   }
 
   .tiles {
@@ -1850,6 +2219,7 @@ input[type='search']::-webkit-search-cancel-button {
   }
 
   .video {
+    --thumb: 112px;
     padding: 12px;
   }
 
@@ -1875,6 +2245,7 @@ input[type='search']::-webkit-search-cancel-button {
 
   .score {
     gap: 12px;
+    margin-top: 0;
   }
 
   /* En celular la acción baja de la línea del título a la suya, bajo los datos */
