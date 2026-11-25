@@ -3,6 +3,6 @@ export default defineEventHandler(async (event) => {
   requireLive()
   const body = await readBody<{ collectionId?: unknown }>(event)
   const collectionId = typeof body?.collectionId === 'string' && body.collectionId ? body.collectionId : null
-  await dbSetSavedCollection(getRouterParam(event, 'id')!, collectionId)
+  await dbSetSavedCollection(await currentUserId(event), getRouterParam(event, 'id')!, collectionId)
   return { ok: true }
 })

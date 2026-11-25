@@ -4,11 +4,11 @@ import { refreshAges, type Channel, type ScoredVideo } from '~~/shared/outliers'
  * Lo que está pegando en los temas que sigues. Lee resultados guardados: no gasta cuota.
  * Cada video trae los temas en los que apareció.
  */
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   const demo = appMode() === 'demo'
   const [topics, followed] = demo
     ? [demoTopics(), demoData().channels]
-    : await Promise.all([dbListTopics(), dbListChannels()])
+    : await currentUserId(event).then((userId) => Promise.all([dbListTopics(userId), dbListChannels(userId)]))
   const followedById = new Map(followed.map((c) => [c.id, c]))
 
   const channels = new Map<string, Channel & { followed: boolean }>()

@@ -148,10 +148,20 @@ Configuración (proyecto `ac-outliers` de Google Cloud):
    (y `http://localhost:3000/api/auth/callback` para desarrollo).
 4. En Vercel, define `NUXT_GOOGLE_CLIENT_ID` y `NUXT_GOOGLE_CLIENT_SECRET`.
 
-Mientras la app esté **en prueba** en Google, solo entran las cuentas agregadas como usuarios de prueba. Por ahora todas
-las cuentas que entran ven los mismos canales y temas: **no publiques la app en Google antes de separar los datos por
-usuario**. El permiso de Google se guarda cifrado con una clave derivada de `NUXT_GOOGLE_CLIENT_SECRET`; si cambias el
-secreto, hay que volver a entrar.
+Mientras la app esté **en prueba** en Google, solo entran las cuentas agregadas como usuarios de prueba. El permiso de
+Google se guarda cifrado con una clave derivada de `NUXT_GOOGLE_CLIENT_SECRET`; si cambias el secreto, hay que volver a
+entrar.
+
+### Datos de cada persona
+
+Cada cuenta tiene sus propios canales seguidos (y cuáles son suyos), temas, guardados y colecciones. Los canales,
+videos y temas en sí son un catálogo compartido: son datos públicos de YouTube, así que si dos personas siguen el mismo
+canal o tema, se actualiza una sola vez y la segunda no gasta cuota al agregarlo. Cuando nadie sigue ya un canal o un
+tema, sale del catálogo.
+
+Quien entra con la **contraseña** (o con la extensión conectada con ella) ve los datos del **dueño**. La primera vez que
+el dueño entra con Google (el correo de `NUXT_OWNER_EMAIL`, por defecto alejoxcode@gmail.com), esa cuenta se queda con
+los datos que ya existían.
 
 ## Extensión del navegador
 

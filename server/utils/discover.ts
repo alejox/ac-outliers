@@ -19,9 +19,9 @@ function groupByChannel(videos: Video[]): Record<string, Video[]> {
  * Puntúa videos encontrados fuera de tus canales contra lo normal de su propio canal.
  * No guarda nada. Solo considera videos largos. Cuesta unas 2 unidades por canal distinto.
  */
-export async function scoreFoundVideos(found: Video[]) {
+export async function scoreFoundVideos(found: Video[], userId?: string) {
   const channelIds = [...new Set(found.map((v) => v.channelId))]
-  const [followed, channels] = await Promise.all([dbListChannels(), fetchChannelsByIds(channelIds)])
+  const [followed, channels] = await Promise.all([userId ? dbListChannels(userId) : Promise.resolve([]), fetchChannelsByIds(channelIds)])
 
   // Los videos recientes de cada canal dan la referencia de qué es normal en él.
   const recent = new Map<string, Video>()

@@ -8,7 +8,7 @@ const DAYS = 14
  * Lo que Inicio necesita además de canales y temas: el impulso diario de cada tema y el historial
  * de los canales que marcaste como tuyos. Solo lee lo guardado: no gasta cuota.
  */
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   if (appMode() === 'demo') {
     const momentum: Record<string, MomentumPoint[]> = {}
     for (const t of demoTopics()) momentum[t.id] = t.momentum
@@ -16,7 +16,9 @@ export default defineEventHandler(async () => {
   }
 
   const since = new Date(Date.now() - (DAYS - 1) * 86_400_000).toISOString().slice(0, 10)
-  const [topics, channels, snapshots] = await Promise.all([dbListTopics(), dbListChannels(), dbListTopicSnapshots(since)])
+  const userId = await currentUserId(event)
+  const [topics, channels] = await Promise.all([dbListTopics(userId), dbListChannels(userId)])
+  const snapshots = await dbListTopicSnapshots(since, topics.map((t) => t.id))
 
   const momentum: Record<string, MomentumPoint[]> = {}
   for (const topic of topics) {

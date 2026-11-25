@@ -6,10 +6,11 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ id?: unknown; short?: unknown; saved?: unknown }>(event)
   const id = typeof body?.id === 'string' && /^[\w-]{11}$/.test(body.id) ? body.id : null
   if (!id) throw createError({ statusCode: 400, message: 'Falta el ID del video.' })
+  const userId = await currentUserId(event)
   if (body?.saved === false) {
-    await dbUnsaveVideo(id)
+    await dbUnsaveVideo(userId, id)
     return { saved: false }
   }
-  await saveVideoById(id, body?.short === true)
+  await saveVideoById(userId, id, body?.short === true)
   return { saved: true }
 })

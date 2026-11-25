@@ -13,14 +13,17 @@ export default defineEventHandler(async (event) => {
   if (query.length < 2 && !categoryId) {
     throw createError({ statusCode: 400, message: 'Escribe un tema o elige una categoría.' })
   }
-  if ((await dbListTopics()).length >= MAX_TOPICS) {
+  const userId = await currentUserId(event)
+  if ((await dbListTopics(userId)).length >= MAX_TOPICS) {
     throw createError({
       statusCode: 400,
       message: `Puedes seguir hasta ${MAX_TOPICS} temas. Quita uno para agregar otro.`,
     })
   }
 
-  const topic = await dbCreateTopic({ query, categoryId, language: 'es', days: 30 })
-  const videos = await refreshTopic(topic)
+  const topic = await dbFollowTopic(userId, { query, categoryId, language: 'es', days: 30 })
+  // Si otra persona ya sigue este tema y se refrescó hoy, sus resultados sirven: no se gasta cuota.
+  const fresh = topic.fetchedAt && Date.now() - new Date(topic.fetchedAt).getTime() < 20 * 3_600_000
+  const videos = fresh ? null : await refreshTopic(topic)
   return { topic, videos }
 })

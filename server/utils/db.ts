@@ -71,10 +71,36 @@ const toVideo = (r: any): Video => ({
 const VIDEO_COLUMNS =
   'id, channel_id, title, thumbnail_url, published_at, duration_seconds, is_short, category_id, views, likes, comments, updated_at'
 
-export async function dbListChannels(): Promise<Channel[]> {
+/** Todos los canales del catálogo (los que sigue alguien), sin datos de ninguna persona. */
+export async function dbListCatalogChannels(): Promise<Channel[]> {
   const { data, error } = await db().from('channels').select('*').order('title')
   check(error, 'leer los canales')
-  return (data ?? []).map(toChannel)
+  return (data ?? []).map((r) => toChannel({ ...r, is_mine: false }))
+}
+
+/** Los canales que sigue una persona, con cuáles marcó como suyos. */
+export async function dbListChannels(userId: string): Promise<Channel[]> {
+  const { data: follows, error } = await db().from('user_channels').select('channel_id, is_mine').eq('user_id', userId)
+  check(error, 'leer tus canales')
+  const mine = new Map((follows ?? []).map((f) => [f.channel_id as string, Boolean(f.is_mine)]))
+  if (mine.size === 0) return []
+  const rows: any[] = []
+  const ids = [...mine.keys()]
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error: chError } = await db().from('channels').select('*').in('id', ids.slice(i, i + 100))
+    check(chError, 'leer tus canales')
+    rows.push(...(data ?? []))
+  }
+  return rows
+    .map((r) => toChannel({ ...r, is_mine: mine.get(r.id) ?? false }))
+    .sort((a, b) => a.title.localeCompare(b.title, 'es'))
+}
+
+export async function dbFollowChannel(userId: string, channelId: string, isMine?: boolean): Promise<void> {
+  const row: Record<string, unknown> = { user_id: userId, channel_id: channelId }
+  if (isMine !== undefined) row.is_mine = isMine
+  const { error } = await db().from('user_channels').upsert(row, { onConflict: 'user_id,channel_id' })
+  check(error, 'seguir el canal')
 }
 
 /** Guarda o refresca un canal y deja una foto diaria de sus cifras. */
@@ -138,8 +164,8 @@ export async function dbListPreviousReadings(): Promise<Map<string, PreviousRead
 }
 
 /** Marca o desmarca un canal como tuyo. */
-export async function dbSetChannelMine(id: string, mine: boolean): Promise<void> {
-  const { error } = await db().from('channels').update({ is_mine: mine }).eq('id', id)
+export async function dbSetChannelMine(userId: string, id: string, mine: boolean): Promise<void> {
+  const { error } = await db().from('user_channels').update({ is_mine: mine }).eq('user_id', userId).eq('channel_id', id)
   check(error, 'marcar el canal')
 }
 
@@ -167,10 +193,20 @@ export async function dbListChannelSnapshots(ids: string[]): Promise<Map<string,
   return byChannel
 }
 
-export async function dbDeleteChannel(id: string): Promise<void> {
-  // Los videos y snapshots del canal se borran en cascada.
-  const { error } = await db().from('channels').delete().eq('id', id)
+/** Deja de seguir un canal. Si ya nadie lo sigue, sale del catálogo con sus videos e historial. */
+export async function dbDeleteChannel(userId: string, id: string): Promise<void> {
+  const { error } = await db().from('user_channels').delete().eq('user_id', userId).eq('channel_id', id)
   check(error, 'quitar el canal')
+  const { count, error: countError } = await db()
+    .from('user_channels')
+    .select('channel_id', { count: 'exact', head: true })
+    .eq('channel_id', id)
+  check(countError, 'quitar el canal')
+  if (!count) {
+    // Los videos y snapshots del canal se borran en cascada.
+    const { error: delError } = await db().from('channels').delete().eq('id', id)
+    check(delError, 'quitar el canal')
+  }
 }
 
 /** Videos guardados de un solo canal. */
@@ -180,18 +216,25 @@ export async function dbListChannelVideos(channelId: string): Promise<Video[]> {
   return (data ?? []).map(toVideo)
 }
 
-export async function dbListVideos(): Promise<Video[]> {
-  // Supabase devuelve máximo 1000 filas por consulta, así que se pagina.
+/** Los videos de los canales que sigue una persona. */
+export async function dbListVideos(userId: string): Promise<Video[]> {
+  const { data: follows, error: fError } = await db().from('user_channels').select('channel_id').eq('user_id', userId)
+  check(fError, 'leer tus canales')
+  const ids = (follows ?? []).map((f) => f.channel_id as string)
+  // Supabase devuelve máximo 1000 filas por consulta, así que se pagina por grupos de canales.
   const rows: any[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await db()
-      .from('videos')
-      .select(VIDEO_COLUMNS)
-      .order('id')
-      .range(from, from + PAGE - 1)
-    check(error, 'leer los videos')
-    rows.push(...(data ?? []))
-    if (!data || data.length < PAGE) break
+  for (let i = 0; i < ids.length; i += 50) {
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await db()
+        .from('videos')
+        .select(VIDEO_COLUMNS)
+        .in('channel_id', ids.slice(i, i + 50))
+        .order('id')
+        .range(from, from + PAGE - 1)
+      check(error, 'leer los videos')
+      rows.push(...(data ?? []))
+      if (!data || data.length < PAGE) break
+    }
   }
   return rows.map(toVideo)
 }
@@ -260,11 +303,30 @@ export type TopicContext = Record<string, Video[]>
 
 const TOPIC_COLUMNS = 'id, query, category_id, language, days, results, fetched_at, created_at'
 
-/** Temas con sus resultados guardados, del más antiguo al más nuevo. */
-export async function dbListTopics(): Promise<(Topic & { results: TopicResults | null })[]> {
-  const { data, error } = await db().from('topics').select(TOPIC_COLUMNS).order('created_at')
+/** Todos los temas del catálogo (los sigue alguien), para la actualización diaria. */
+export async function dbListAllTopics(): Promise<Topic[]> {
+  const { data, error } = await db().from('topics').select('id, query, category_id, language, days, fetched_at').order('created_at')
   check(error, 'leer los temas')
-  return (data ?? []).map((r) => ({ ...toTopic(r), results: r.results ?? null }))
+  return (data ?? []).map(toTopic)
+}
+
+/** Los temas que sigue una persona, con sus resultados guardados, del primero que siguió al último. */
+export async function dbListTopics(userId: string): Promise<(Topic & { results: TopicResults | null })[]> {
+  const { data: follows, error: fError } = await db().from('user_topics').select('topic_id, added_at').eq('user_id', userId)
+  check(fError, 'leer tus temas')
+  const order = new Map((follows ?? []).map((f) => [f.topic_id as string, String(f.added_at)]))
+  if (order.size === 0) return []
+  const { data, error } = await db().from('topics').select(TOPIC_COLUMNS).in('id', [...order.keys()])
+  check(error, 'leer los temas')
+  return (data ?? [])
+    .sort((a, b) => order.get(a.id)!.localeCompare(order.get(b.id)!))
+    .map((r) => ({ ...toTopic(r), results: r.results ?? null }))
+}
+
+export async function dbFollowsTopic(userId: string, topicId: string): Promise<boolean> {
+  const { data, error } = await db().from('user_topics').select('topic_id').eq('user_id', userId).eq('topic_id', topicId).maybeSingle()
+  check(error, 'leer tus temas')
+  return data !== null
 }
 
 export async function dbGetTopic(id: string): Promise<Topic | null> {
@@ -277,7 +339,15 @@ export async function dbGetTopic(id: string): Promise<Topic | null> {
   return data ? toTopic(data) : null
 }
 
-export async function dbCreateTopic(topic: Omit<Topic, 'id' | 'fetchedAt'>): Promise<Topic> {
+/** Sigue un tema: si otra persona ya lo sigue, se reutiliza (con sus resultados) en vez de duplicarlo. */
+export async function dbFollowTopic(userId: string, topic: Omit<Topic, 'id' | 'fetchedAt'>): Promise<Topic> {
+  const saved = await dbCreateTopic(topic)
+  const { error } = await db().from('user_topics').upsert({ user_id: userId, topic_id: saved.id }, { onConflict: 'user_id,topic_id' })
+  check(error, 'seguir el tema')
+  return saved
+}
+
+async function dbCreateTopic(topic: Omit<Topic, 'id' | 'fetchedAt'>): Promise<Topic> {
   const { data, error } = await db()
     .from('topics')
     .upsert(
@@ -321,11 +391,13 @@ export async function dbSaveTopicSnapshot(topicId: string, point: Omit<MomentumP
 }
 
 /** Fotos del impulso de cada tema desde una fecha, de la más antigua a la más nueva. */
-export async function dbListTopicSnapshots(since: string): Promise<Map<string, MomentumPoint[]>> {
+export async function dbListTopicSnapshots(since: string, topicIds: string[]): Promise<Map<string, MomentumPoint[]>> {
   const byTopic = new Map<string, MomentumPoint[]>()
+  if (topicIds.length === 0) return byTopic
   const { data, error } = await db()
     .from('topic_snapshots')
     .select('topic_id, captured_on, momentum, outliers, videos')
+    .in('topic_id', topicIds)
     .gte('captured_on', since)
     .order('captured_on')
   check(error, 'leer el impulso de los temas')
@@ -337,9 +409,19 @@ export async function dbListTopicSnapshots(since: string): Promise<Map<string, M
   return byTopic
 }
 
-export async function dbDeleteTopic(id: string): Promise<void> {
-  const { error } = await db().from('topics').delete().eq('id', id)
+/** Deja de seguir un tema. Si ya nadie lo sigue, se borra con sus resultados. */
+export async function dbDeleteTopic(userId: string, id: string): Promise<void> {
+  const { error } = await db().from('user_topics').delete().eq('user_id', userId).eq('topic_id', id)
   check(error, 'quitar el tema')
+  const { count, error: countError } = await db()
+    .from('user_topics')
+    .select('topic_id', { count: 'exact', head: true })
+    .eq('topic_id', id)
+  check(countError, 'quitar el tema')
+  if (!count) {
+    const { error: delError } = await db().from('topics').delete().eq('id', id)
+    check(delError, 'quitar el tema')
+  }
 }
 
 // Extensión del navegador
@@ -391,10 +473,11 @@ export interface Collection {
   name: string
 }
 
-export async function dbListSaved(): Promise<SavedVideo[]> {
+export async function dbListSaved(userId: string): Promise<SavedVideo[]> {
   const { data, error } = await db()
     .from('saved_videos')
     .select('video, channel, saved_at, collection_id')
+    .eq('user_id', userId)
     .order('saved_at', { ascending: false })
   check(error, 'leer los guardados')
   return (data ?? []).map((r) => ({
@@ -405,14 +488,14 @@ export async function dbListSaved(): Promise<SavedVideo[]> {
   }))
 }
 
-export async function dbListCollections(): Promise<Collection[]> {
-  const { data, error } = await db().from('collections').select('id, name').order('name')
+export async function dbListCollections(userId: string): Promise<Collection[]> {
+  const { data, error } = await db().from('collections').select('id, name').eq('user_id', userId).order('name')
   check(error, 'leer las colecciones')
   return data ?? []
 }
 
-export async function dbCreateCollection(name: string): Promise<Collection> {
-  const { data, error } = await db().from('collections').insert({ name }).select('id, name').single()
+export async function dbCreateCollection(userId: string, name: string): Promise<Collection> {
+  const { data, error } = await db().from('collections').insert({ user_id: userId, name }).select('id, name').single()
   if (error && /duplicate|unique/i.test(error.message)) {
     throw createError({ statusCode: 409, message: `Ya tienes una colección llamada “${name}”.` })
   }
@@ -420,30 +503,47 @@ export async function dbCreateCollection(name: string): Promise<Collection> {
   return data as Collection
 }
 
-export async function dbDeleteCollection(id: string): Promise<void> {
+export async function dbDeleteCollection(userId: string, id: string): Promise<void> {
   // Sus videos siguen en Guardados, sin colección.
-  const { error } = await db().from('collections').delete().eq('id', id)
+  const { error } = await db().from('collections').delete().eq('user_id', userId).eq('id', id)
   check(error, 'eliminar la colección')
 }
 
-export async function dbSetSavedCollection(videoId: string, collectionId: string | null): Promise<void> {
-  const { error } = await db().from('saved_videos').update({ collection_id: collectionId }).eq('video_id', videoId)
+export async function dbSetSavedCollection(userId: string, videoId: string, collectionId: string | null): Promise<void> {
+  if (collectionId && !(await dbListCollections(userId)).some((c) => c.id === collectionId)) {
+    throw createError({ statusCode: 404, message: 'Esa colección no existe.' })
+  }
+  const { error } = await db()
+    .from('saved_videos')
+    .update({ collection_id: collectionId })
+    .eq('user_id', userId)
+    .eq('video_id', videoId)
   check(error, 'mover el video de colección')
 }
 
-export async function dbIsSaved(videoId: string): Promise<boolean> {
-  const { data, error } = await db().from('saved_videos').select('video_id').eq('video_id', videoId).maybeSingle()
+export async function dbIsSaved(userId: string, videoId: string): Promise<boolean> {
+  const { data, error } = await db()
+    .from('saved_videos')
+    .select('video_id')
+    .eq('user_id', userId)
+    .eq('video_id', videoId)
+    .maybeSingle()
   check(error, 'leer los guardados')
   return data !== null
 }
 
-export async function dbSaveVideo(video: ScoredVideo, channel: Channel | null): Promise<void> {
-  const { error } = await db().from('saved_videos').upsert({ video_id: video.id, video, channel, saved_at: new Date().toISOString() })
+export async function dbSaveVideo(userId: string, video: ScoredVideo, channel: Channel | null): Promise<void> {
+  const { error } = await db()
+    .from('saved_videos')
+    .upsert(
+      { user_id: userId, video_id: video.id, video, channel, saved_at: new Date().toISOString() },
+      { onConflict: 'user_id,video_id' },
+    )
   check(error, 'guardar el video')
 }
 
-export async function dbUnsaveVideo(videoId: string): Promise<void> {
-  const { error } = await db().from('saved_videos').delete().eq('video_id', videoId)
+export async function dbUnsaveVideo(userId: string, videoId: string): Promise<void> {
+  const { error } = await db().from('saved_videos').delete().eq('user_id', userId).eq('video_id', videoId)
   check(error, 'quitar el video de guardados')
 }
 
@@ -561,6 +661,21 @@ export async function dbUpsertUser(user: {
   const { data, error } = await db().from('users').upsert(row, { onConflict: 'google_sub' }).select('*').single()
   check(error, 'guardar el usuario')
   return toUser(data)
+}
+
+export async function dbOwnerId(): Promise<string | null> {
+  const { data, error } = await db().from('users').select('id').eq('is_owner', true).limit(1).maybeSingle()
+  check(error, 'leer la cuenta dueña')
+  return data?.id ?? null
+}
+
+/**
+ * Si el dueño entra con Google por primera vez, su cuenta reclama la provisional (y con ella los datos
+ * que ya existían). Solo pasa una vez: después la cuenta dueña ya tiene su ID de Google.
+ */
+export async function dbClaimOwner(googleSub: string): Promise<void> {
+  const { error } = await db().from('users').update({ google_sub: googleSub }).eq('is_owner', true).eq('google_sub', 'owner')
+  check(error, 'reclamar la cuenta dueña')
 }
 
 export async function dbGetUser(id: string): Promise<AppUser | null> {

@@ -21,6 +21,10 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const videos = await syncChannel(channel.id, channel)
+  // Si otra persona ya sigue el canal y está al día, no se vuelve a pedir a YouTube.
+  const known = (await dbListCatalogChannels()).find((c) => c.id === channel.id)
+  const recent = known?.lastSyncedAt && Date.now() - new Date(known.lastSyncedAt).getTime() < 12 * 3_600_000
+  const videos = recent ? (await dbListChannelVideos(channel.id)).length : await syncChannel(channel.id, channel)
+  await dbFollowChannel(await currentUserId(event), channel.id)
   return { channel, videos }
 })

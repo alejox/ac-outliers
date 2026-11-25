@@ -5,6 +5,6 @@ export default defineEventHandler(async (event) => {
   if (typeof body?.mine !== 'boolean') {
     throw createError({ statusCode: 400, message: 'Falta indicar si el canal es tuyo.' })
   }
-  await dbSetChannelMine(getRouterParam(event, 'id')!, body.mine)
+  await dbSetChannelMine(await currentUserId(event), getRouterParam(event, 'id')!, body.mine)
   return { ok: true, isMine: body.mine }
 })

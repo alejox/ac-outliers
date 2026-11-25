@@ -1,6 +1,6 @@
-/** Quita un canal junto con sus videos e historial. */
+/** Deja de seguir un canal. Si nadie más lo sigue, se borran sus videos e historial. */
 export default defineEventHandler(async (event) => {
   requireLive()
-  await dbDeleteChannel(getRouterParam(event, 'id')!)
+  await dbDeleteChannel(await currentUserId(event), getRouterParam(event, 'id')!)
   return { ok: true }
 })

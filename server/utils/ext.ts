@@ -43,7 +43,7 @@ export async function videosWithBaselines(
 
   const missing = [...keys.entries()].filter(([key]) => !known.has(key)).map(([, k]) => k)
   if (missing.length > 0) {
-    const followed = new Map((await dbListChannels()).map((c) => [c.id, c]))
+    const followed = new Map((await dbListCatalogChannels()).map((c) => [c.id, c]))
     const computed: Baseline[] = []
     const savedVideos = new Map<string, Promise<Video[]>>()
 
@@ -92,14 +92,14 @@ export async function scoreForExtension(requests: VideoRequest[]): Promise<{ sco
  * Guarda un video por su ID con su score de hoy. Los de canales que sigues se toman de lo ya guardado;
  * los demás cuestan 1 unidad por el video, 1 por el canal y 2 si su canal no se calculó hoy.
  */
-export async function saveVideoById(id: string, short: boolean): Promise<ScoredVideo> {
+export async function saveVideoById(userId: string, id: string, short: boolean): Promise<ScoredVideo> {
   const { items } = await videosWithBaselines([{ id, short }])
   const item = items[0]
   if (!item) throw createError({ statusCode: 404, message: 'YouTube no devolvió ese video: puede ser privado o estar en vivo.' })
   const [scored] = scoreVideos([item.video])
   const video: ScoredVideo = { ...scored!, baseline: item.baseline, score: scoreAgainst(item.video.views, item.baseline) }
-  const followed = (await dbListChannels()).find((c) => c.id === video.channelId)
+  const followed = (await dbListCatalogChannels()).find((c) => c.id === video.channelId)
   const channel = followed ?? (await fetchChannelsByIds([video.channelId]))[0] ?? null
-  await dbSaveVideo(video, channel)
+  await dbSaveVideo(userId, video, channel)
   return video
 }
