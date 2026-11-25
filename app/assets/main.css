@@ -1,28 +1,50 @@
 /* Sistema visual de AC Outliers: tema oscuro único, sin color en la interfaz. */
 
 :root {
-  --void: #040506;
-  --ink: #07080a;
-  --obsidian: #111214;
-  --graphite: #1b1c1e;
-  --slate: #2f3031;
-  --border: #363739;
-  --iron: #454647;
-  --smoke: #6a6b6c;
-  --ash: #9c9c9d;
-  --mist: #e6e6e6;
-  --white: #ffffff;
-  --coral: #ff6363;
-  --ember: #452324;
-
+  /* Sala de edición: gris neutro de estudio, tres superficies y un solo acento. */
+  --base: #0e0e0f;
+  --surface: #18181a;
+  --raised: #232326;
+  --raised-hover: #2d2d31;
   --line: rgb(255 255 255 / 0.08);
-  --line-strong: rgb(255 255 255 / 0.12);
-  --well: rgb(255 255 255 / 0.05);
+  --line-strong: rgb(255 255 255 / 0.16);
+  --text: #f4f3f1;
+  --text-2: #aeadaa;
+  --text-3: #8a8986;
+  --coral: #ff6363;
+  --coral-ink: #1c0b0b;
+  --coral-line: #5a2a2b;
+  --on-light: #0e0e0f;
 
-  --sans: 'Inter', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-  --mono: 'Geist Mono', 'JetBrains Mono', Menlo, monospace;
+  --display: 'Bricolage Grotesque', 'Geist', system-ui, sans-serif;
+  --sans: 'Geist', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
 
-  --control: 32px;
+  --r-badge: 8px;
+  --r-thumb: 12px;
+  --r-panel: 18px;
+  --r-hero: 24px;
+  --r-pill: 999px;
+  --float: 0 0 0 1px var(--line), 0 24px 80px rgb(0 0 0 / 0.6);
+
+  --control: 36px;
+  --side: 232px;
+  --top: 64px;
+
+  /* Nombres del sistema anterior, apuntando a los nuevos: se retiran cuando ningún estilo los usa. */
+  --void: var(--base);
+  --ink: var(--surface);
+  --obsidian: var(--raised);
+  --graphite: var(--raised);
+  --slate: var(--line-strong);
+  --border: var(--line-strong);
+  --iron: #55544f;
+  --smoke: var(--text-3);
+  --ash: var(--text-2);
+  --mist: var(--text);
+  --white: var(--text);
+  --ember: var(--coral-line);
+  --well: var(--raised);
+  --mono: var(--sans);
 
   color-scheme: dark;
 }
@@ -3615,5 +3637,215 @@ input[type='search']::-webkit-search-cancel-button {
   }
   .public-links > a:not(.button) {
     display: none;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Sala de edición: piezas base (botones, campos, controles segmentados, insignias)
+   ------------------------------------------------------------------------------------------------ */
+
+body {
+  font-feature-settings: 'ss01' 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.button {
+  height: var(--control);
+  padding: 0 16px;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--raised);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--raised-hover);
+}
+
+.button:disabled,
+.button-primary:disabled {
+  border: 0;
+  background: var(--raised);
+  color: var(--text-2);
+  opacity: 0.6;
+}
+
+.button-primary {
+  background: var(--text);
+  color: var(--on-light);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #fff;
+}
+
+.button-small {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.button-outline,
+.button-ghost {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text);
+}
+
+.button-ghost {
+  box-shadow: none;
+  color: var(--text-2);
+}
+
+.button-outline:hover:not(:disabled),
+.button-ghost:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.button.is-unavailable,
+.button.is-unavailable:hover {
+  background: var(--raised);
+  color: var(--text-2);
+  opacity: 0.6;
+}
+
+.add input,
+.ask input,
+.login input {
+  height: var(--control);
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background-color: var(--raised);
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.add input:hover,
+.ask input:hover,
+.login input:hover {
+  border-color: var(--line-strong);
+}
+
+.add input::placeholder,
+.ask input::placeholder,
+.tool input::placeholder {
+  color: var(--text-2);
+}
+
+.tool {
+  height: var(--control);
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--raised);
+}
+
+.tool:hover {
+  background: var(--raised-hover);
+  border-color: transparent;
+}
+
+.tool.is-active {
+  border-color: var(--line-strong);
+}
+
+.tool-label {
+  padding-left: 14px;
+}
+
+.tool select,
+.tool input {
+  height: calc(var(--control) - 2px);
+  margin: 0;
+  border-radius: var(--r-pill);
+  font-weight: 500;
+}
+
+.tool select {
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23aeadaa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 14px center;
+}
+
+.tool select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.segmented {
+  height: var(--control);
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.segmented button {
+  height: 100%;
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.count {
+  border-radius: var(--r-pill);
+  background: var(--raised);
+}
+
+.badge {
+  border-radius: var(--r-pill);
+  background: var(--raised);
+  padding: 0 8px;
+}
+
+.banner {
+  align-items: center;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.banner code {
+  background: var(--raised);
+}
+
+.banner-error {
+  box-shadow: inset 0 0 0 1px var(--coral-line);
+}
+
+.link-button {
+  text-decoration-color: var(--line-strong);
+}
+
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 }
