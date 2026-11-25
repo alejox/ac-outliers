@@ -3057,3 +3057,13 @@ input[type='search']::-webkit-search-cancel-button {
     order: 2;
   }
 }
+
+/* Novedades: "ver todas" bajo la lista, y la línea tranquila cuando no hay nada nuevo */
+.feed-more {
+  margin-top: 12px;
+}
+.feed-quiet {
+  margin: 0 0 24px;
+  color: var(--ash);
+  font-size: 13px;
+}

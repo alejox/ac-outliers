@@ -47,8 +47,10 @@ Las tres claves se usan solo en el servidor; nunca llegan al navegador.
 
 Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de vidIQ:
 
-- **Inicio** (la pantalla de entrada): lo que pasó en tus canales y tus temas, en cuatro bloques que solo
-  aparecen si tienen datos (ver [Inicio](#inicio)).
+- **Inicio** (la pantalla de entrada): lo que pasó en tus canales y tus temas, en bloques que solo
+  aparecen si tienen datos (ver [Inicio](#inicio)). Arriba van las **novedades desde tu última visita**: los
+  outliers (2× o más) de tus canales y tus temas que no estaban la vez anterior. Se recuerdan en el navegador,
+  sin gastar cuota; la primera visita solo toma nota.
 - **Tendencias**: sigues hasta 8 temas, con palabra clave, categoría o ambas, y la
   app guarda los outliers de cada uno entre lo publicado en los últimos 30 días. Se refrescan una vez al
   día, así que abrir la pestaña no gasta cuota. Sin temas, muestra lo que más rápido sube en tus canales.
