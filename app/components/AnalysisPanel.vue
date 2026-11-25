@@ -19,6 +19,12 @@ let opener: HTMLElement | null = null
 const analysis = computed(() =>
   props.video && props.channelVideos ? analyzeVideo(props.video, props.channelVideos) : null,
 )
+const saver = inject<{
+  enabled: Ref<boolean>
+  isSaved: (id: string) => boolean
+  busy: Ref<string | null>
+  toggle: (video: ScoredVideo) => void
+} | null>('saver', null)
 const format = computed(() => (props.video?.isShort ? 'Shorts' : 'videos largos'))
 
 // Cambios de título y miniatura: solo se piden si la fila ya sabe que el video cambió.
@@ -110,39 +116,61 @@ onBeforeUnmount(() => document.documentElement.classList.remove('has-drawer'))
     <div v-if="video" class="drawer-inner">
       <div class="drawer-bar">
         <p class="drawer-kicker">Por qué destaca</p>
-        <button ref="closeButton" class="button button-small" type="button" @click="close">
-          <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+        <button ref="closeButton" class="icon-button drawer-close" type="button" aria-label="Cerrar" @click="close">
+          <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
             <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
           </svg>
-          Cerrar
         </button>
       </div>
 
-      <div class="drawer-body" :class="`tier-${scoreTier(video.score)}`">
-        <div class="analysis-head">
-          <a class="thumb" :href="videoUrl(video)" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">
-            <img v-if="video.thumbnailUrl" :src="video.thumbnailUrl" alt="" />
-            <span v-else class="thumb-blank" :style="{ '--hue': hueOf(video.channelId) }">{{ channel?.title.charAt(0) }}</span>
-            <span v-if="video.isShort" class="duration duration-short">Short</span>
-            <span v-else class="duration">{{ formatDuration(video.durationSeconds) }}</span>
-          </a>
-          <div class="analysis-title">
-            <h2 id="analysis-title">
-              <a :href="videoUrl(video)" target="_blank" rel="noopener">{{ video.title }}</a>
-            </h2>
-            <p class="byline">
-              <span>{{ channel?.title }}</span>
-              <span v-if="channel?.subscriberCount">{{ compact.format(channel.subscriberCount) }} suscriptores</span>
-              <span>{{ formatAge(video.ageDays) }}</span>
+      <div class="drawer-body" :class="`is-${badgeTier(video.score)}`">
+        <a class="analysis-thumb" :href="videoUrl(video)" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">
+          <VideoThumb
+            :src="video.thumbnailUrl"
+            :title="video.title"
+            :seed="video.channelId"
+            plain
+            :duration="video.isShort ? 'Short' : formatDuration(video.durationSeconds)"
+          />
+        </a>
+        <h2 id="analysis-title" class="analysis-title">
+          <a :href="videoUrl(video)" target="_blank" rel="noopener">{{ video.title }}</a>
+        </h2>
+        <p class="analysis-by">
+          <span>{{ channel?.title }}</span>
+          <span v-if="channel?.subscriberCount">{{ compact.format(channel.subscriberCount) }} suscriptores</span>
+          <span>{{ formatAge(video.ageDays) }}</span>
+        </p>
+
+        <div class="analysis-score">
+          <p v-if="video.score !== null" class="analysis-value">{{ formatScore(video.score) }}</p>
+          <p v-else class="analysis-value score-none" aria-hidden="true">–</p>
+          <p class="analysis-phrase">
+            <b>{{ compact.format(video.views) }} vistas</b>
+            <template v-if="video.baseline !== null"> donde lo normal del canal son {{ compact.format(video.baseline) }}</template>
+            <template v-else>. Pocos videos para comparar.</template>
+          </p>
+          <div v-if="video.score !== null" class="analysis-rule">
+            <ScoreStrip :score="video.score" />
+            <p class="strip-scale" aria-hidden="true">
+              <span :style="{ left: `${NORMAL_AT}%` }">lo normal</span>
+              <span v-for="m in [4, 16]" :key="m" :style="{ left: `${stripPosition(m)}%` }">{{ m }}×</span>
             </p>
           </div>
         </div>
 
-        <div class="score analysis-score">
-          <p v-if="video.score !== null" class="score-value">{{ formatScore(video.score) }}</p>
-          <p v-else class="score-value score-none" aria-hidden="true">–</p>
-          <ScoreStrip v-if="video.score !== null" :score="video.score" />
-          <p v-else class="score-missing">Pocos videos para comparar</p>
+        <div class="analysis-actions">
+          <button
+            v-if="saver?.enabled.value"
+            class="button button-primary"
+            type="button"
+            :aria-pressed="saver.isSaved(video.id)"
+            :disabled="saver.busy.value !== null"
+            @click="saver.toggle(video)"
+          >
+            {{ saver.busy.value === video.id ? 'Guardando' : saver.isSaved(video.id) ? 'Guardado' : 'Guardar' }}
+          </button>
+          <a class="button" :href="videoUrl(video)" target="_blank" rel="noopener">Abrir en YouTube</a>
         </div>
 
         <section v-if="changes.length > 0" class="changes" aria-labelledby="changes-title">

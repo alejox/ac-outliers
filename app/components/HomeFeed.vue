@@ -70,6 +70,23 @@ const isOwn = (v: ScoredVideo) => props.channelById.has(v.channelId)
 // a. Éxitos recientes (sin repetir lo que ya sale en Novedades)
 const hits = computed(() => recentHits(props.videos.filter((v) => !newsIds.value.has(v.id))))
 
+// El momento héroe: el outlier más fuerte de las novedades o, si no hay, de los éxitos recientes.
+const strongest = (list: ScoredVideo[]) => [...list].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null
+const hero = computed(() => {
+  const fromNews = strongest(news.value)
+  if (fromNews) return { video: fromNews, kicker: 'El más fuerte desde tu última visita' }
+  const fromHits = strongest(hits.value)
+  return fromHits ? { video: fromHits, kicker: 'Tu mejor éxito de los últimos 14 días' } : null
+})
+const newsRest = computed(() => newsShown.value.filter((v) => v.id !== hero.value?.video.id))
+const hitsRest = computed(() => hits.value.filter((v) => v.id !== hero.value?.video.id))
+const saver = inject<{
+  enabled: Ref<boolean>
+  isSaved: (id: string) => boolean
+  busy: Ref<string | null>
+  toggle: (video: ScoredVideo) => void
+} | null>('saver', null)
+
 // b. Impulso de tus temas
 const momentumRows = computed(() =>
   props.topics.map((topic) => {
@@ -159,152 +176,152 @@ const anything = computed(
       <span class="form-error-text">{{ error }}</span>
     </p>
 
+    <!-- El momento héroe: el outlier más fuerte -->
+    <article v-if="hero" class="hero" :class="`is-${badgeTier(hero.video.score)}`" aria-labelledby="hero-title">
+      <button
+        class="hero-media"
+        type="button"
+        :aria-label="`Analizar “${hero.video.title}”`"
+        @click="$emit('analyze', hero.video)"
+      >
+        <VideoThumb
+          :src="hero.video.thumbnailUrl"
+          :title="hero.video.title"
+          :seed="hero.video.channelId"
+          plain
+          :duration="hero.video.isShort ? 'Short' : formatDuration(hero.video.durationSeconds)"
+        />
+      </button>
+      <div class="hero-info">
+        <p class="hero-kicker">{{ hero.kicker }}</p>
+        <div v-if="hero.video.score !== null" class="hero-score">
+          <strong>{{ formatScore(hero.video.score) }}</strong>
+          <p>
+            <b>{{ compact.format(hero.video.views) }} vistas</b>
+            <template v-if="hero.video.baseline !== null"> donde lo normal del canal son {{ compact.format(hero.video.baseline) }}</template>
+          </p>
+        </div>
+        <ScoreStrip v-if="hero.video.score !== null" class="hero-strip" :score="hero.video.score" />
+        <h2 id="hero-title" class="hero-title">
+          <a :href="videoUrl(hero.video)" target="_blank" rel="noopener">{{ hero.video.title }}</a>
+        </h2>
+        <p class="hero-by">
+          <img v-if="allChannels.get(hero.video.channelId)?.thumbnailUrl" class="hero-avatar" :src="allChannels.get(hero.video.channelId)!.thumbnailUrl!" alt="" />
+          <span v-else class="hero-avatar" :style="{ '--hue': hueOf(hero.video.channelId) }" aria-hidden="true">{{ allChannels.get(hero.video.channelId)?.title.charAt(0) }}</span>
+          <span>{{ allChannels.get(hero.video.channelId)?.title }}</span>
+          <span>{{ formatAge(hero.video.ageDays) }}</span>
+          <span>{{ formatPace(hero.video.viewsPerHour) }} vistas por hora</span>
+        </p>
+        <div class="hero-cta">
+          <button class="button button-primary button-large" type="button" @click="$emit('analyze', hero.video)">Ver por qué destaca</button>
+          <button
+            v-if="saver?.enabled.value"
+            class="button button-large"
+            type="button"
+            :aria-pressed="saver.isSaved(hero.video.id)"
+            :disabled="saver.busy.value !== null"
+            @click="saver.toggle(hero.video)"
+          >
+            {{ saver.isSaved(hero.video.id) ? 'Guardado' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </article>
+
     <!-- Novedades desde tu última visita -->
     <section v-if="news.length > 0" class="feed-block" aria-labelledby="feed-news">
-      <div class="results-head">
-        <div class="results-title">
-          <h3 id="feed-news" class="subhead">Novedades desde tu última visita</h3>
-          <p class="summary">
+      <div class="section-head">
+        <div>
+          <h2 id="feed-news">Novedades desde tu última visita</h2>
+          <p class="section-sub">
             {{ news.length === 1 ? '1 video nuevo llegó' : `${news.length} videos nuevos llegaron` }} a 2× o más en tus canales y tus temas<template v-if="lastVisit"> desde {{ sinceLabel(Date.now() - lastVisit) }}</template>
           </p>
         </div>
+        <button v-if="news.length > NEWS_SHOWN" class="link-button" type="button" @click="allNews = !allNews">
+          {{ allNews ? 'Ver menos' : `Ver las ${news.length} novedades` }}
+        </button>
       </div>
-      <ol class="videos">
-        <VideoRow v-for="v in newsShown" :key="v.id" :video="v" :channel="allChannels.get(v.channelId)" @analyze="$emit('analyze', $event)">
-          <template #lead>
-            <img v-if="allChannels.get(v.channelId)?.thumbnailUrl" class="avatar" :src="allChannels.get(v.channelId)!.thumbnailUrl!" alt="" loading="lazy" />
-            <span v-else class="avatar avatar-blank" aria-hidden="true">{{ allChannels.get(v.channelId)?.title.charAt(0) }}</span>
-            <span class="video-lead-text">
-              <strong>{{ allChannels.get(v.channelId)?.title }}</strong> {{ isOwn(v) ? 'tiene un nuevo outlier' : 'tiene un nuevo outlier en tus temas' }}
-            </span>
-            <span class="video-lead-age">{{ formatAge(v.ageDays) }}</span>
-          </template>
-        </VideoRow>
+      <ol v-if="newsRest.length > 0" class="vgrid">
+        <VideoRow v-for="v in newsRest" :key="v.id" :video="v" :channel="allChannels.get(v.channelId)" @analyze="$emit('analyze', $event)" />
       </ol>
-      <button v-if="news.length > NEWS_SHOWN" class="link-button feed-more" type="button" @click="allNews = !allNews">
-        {{ allNews ? 'Ver menos' : `Ver las ${news.length} novedades` }}
-      </button>
     </section>
     <p v-else-if="lastVisit && !firstVisit" class="feed-quiet">
       Nada nuevo desde tu última visita, {{ sinceLabel(Date.now() - lastVisit) }}: ningún video de tus canales o tus temas cruzó 2× en ese tiempo.
     </p>
 
     <!-- a. Éxitos recientes -->
-    <section v-if="hits.length > 0" class="feed-block" aria-labelledby="feed-hits">
-      <div class="results-head">
-        <div class="results-title">
-          <h3 id="feed-hits" class="subhead">Éxitos recientes</h3>
-          <p class="summary">Videos de tus canales publicados en los últimos 14 días que ya llegaron a 2× o más</p>
+    <section v-if="hitsRest.length > 0" class="feed-block" aria-labelledby="feed-hits">
+      <div class="section-head">
+        <div>
+          <h2 id="feed-hits">Éxitos recientes</h2>
+          <p class="section-sub">Videos de tus canales publicados en los últimos 14 días que ya llegaron a 2× o más</p>
         </div>
       </div>
-      <ol class="videos">
-        <VideoRow
-          v-for="v in hits"
-          :key="v.id"
-          :video="v"
-          :channel="channelById.get(v.channelId)"
-          @analyze="$emit('analyze', $event)"
-        >
-          <template #lead>
-            <img v-if="channelById.get(v.channelId)?.thumbnailUrl" class="avatar" :src="channelById.get(v.channelId)!.thumbnailUrl!" alt="" loading="lazy" />
-            <span v-else class="avatar avatar-blank" aria-hidden="true">{{ channelById.get(v.channelId)?.title.charAt(0) }}</span>
-            <span class="video-lead-text">
-              <strong>{{ channelById.get(v.channelId)?.title }}</strong> tuvo un video de gran éxito
-            </span>
-            <span class="video-lead-age">{{ formatAge(v.ageDays) }}</span>
-          </template>
-        </VideoRow>
+      <ol class="vgrid">
+        <VideoRow v-for="v in hitsRest" :key="v.id" :video="v" :channel="channelById.get(v.channelId)" @analyze="$emit('analyze', $event)" />
       </ol>
     </section>
 
-    <!-- b. Impulso de tus temas -->
-    <section v-if="momentumRows.length > 0" class="feed-block" aria-labelledby="feed-momentum">
-      <div class="results-head">
-        <div class="results-title">
-          <h3 id="feed-momentum" class="subhead">Impulso de tus temas</h3>
-          <p class="summary">Vistas por hora que suman los outliers de cada tema, día a día</p>
-        </div>
-      </div>
-      <div class="table-wrap momentum-wrap">
-        <table class="momentum">
-          <thead>
-            <tr>
-              <th scope="col" class="m-topic">Tema</th>
-              <th scope="col" class="m-value" title="Suma de las vistas por hora de sus videos largos de 2× o más">Vistas por hora</th>
-              <th scope="col" class="m-change">Cambio en 7 días</th>
-              <th scope="col" class="m-spark">Últimos 14 días</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in momentumRows" :key="row.topic.id">
-              <th scope="row" class="m-topic">
-                <span class="m-name">{{ row.label }}</span>
-                <span v-if="row.trend" class="m-sub">{{ row.trend.latest.outliers === 1 ? '1 outlier' : `${row.trend.latest.outliers} outliers` }} de {{ row.trend.latest.videos }} videos</span>
-              </th>
-              <td class="m-value" data-label="Vistas por hora">
-                <template v-if="row.trend">{{ formatPace(row.trend.latest.momentum) }}</template>
+    <div v-if="momentumRows.length > 0 || suggestions.length > 0" class="feed-pair" :class="{ 'is-single': momentumRows.length === 0 || suggestions.length === 0 }">
+      <!-- b. Impulso de tus temas -->
+      <section v-if="momentumRows.length > 0" class="panel" aria-labelledby="feed-momentum">
+        <h2 id="feed-momentum" class="panel-title">Impulso de tus temas</h2>
+        <p class="panel-sub">Vistas por hora que suman los outliers de cada tema, día a día</p>
+        <ul class="momentum-list">
+          <li v-for="row in momentumRows" :key="row.topic.id" class="momentum-row">
+            <div class="m-topic">
+              <p class="m-name">{{ row.label }}</p>
+              <p v-if="row.trend" class="m-sub">{{ row.trend.latest.outliers === 1 ? '1 outlier' : `${row.trend.latest.outliers} outliers` }} de {{ row.trend.latest.videos }} videos</p>
+            </div>
+            <p class="m-value" title="Suma de las vistas por hora de sus videos largos de 2× o más">
+              <template v-if="row.trend">{{ formatPace(row.trend.latest.momentum) }}<small>por hora</small></template>
+              <span v-else class="dim">sin datos</span>
+            </p>
+            <template v-if="row.trend && row.trend.base">
+              <p class="m-change">
+                <span v-if="row.trend.change !== null" :class="row.trend.change > 0 ? 'is-up' : 'is-down'">
+                  {{ row.trend.change > 0 ? '▲' : '▼' }} {{ formatChange(row.trend.change).slice(1) }}
+                </span>
                 <span v-else class="dim">sin datos</span>
-              </td>
-              <template v-if="row.trend && row.trend.base">
-                <td class="m-change" :data-label="row.trend.daysBack === 7 ? 'Cambio en 7 días' : `Cambio en ${row.trend.daysBack} días`">
-                  <span v-if="row.trend.change !== null" :class="row.trend.change > 0 ? 'is-up' : 'is-down'">
-                    {{ formatChange(row.trend.change) }}
-                  </span>
-                  <span v-else class="dim">sin datos</span>
-                  <span v-if="row.trend.daysBack !== 7" class="m-days">en {{ row.trend.daysBack }} días</span>
-                </td>
-                <td class="m-spark" data-label="Últimos 14 días">
-                  <Sparkline
-                    :values="row.series.map((p) => p.momentum)"
-                    :rising="(row.trend.change ?? 0) > 0"
-                    :label="sparkLabel(row)"
-                  />
-                </td>
-              </template>
-              <td v-else colspan="2" class="m-wait">Se necesitan más días de datos para ver la tendencia.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+                <small>en {{ row.trend.daysBack }} días</small>
+              </p>
+              <Sparkline class="m-spark" :values="row.series.map((p) => p.momentum)" :rising="(row.trend.change ?? 0) > 0" :label="sparkLabel(row)" />
+            </template>
+            <p v-else class="m-wait">Se necesitan más días de datos para ver la tendencia.</p>
+          </li>
+        </ul>
+      </section>
 
-    <!-- c. Competidores sugeridos -->
-    <section v-if="suggestions.length > 0" class="feed-block" aria-labelledby="feed-suggest">
-      <div class="results-head">
-        <div class="results-title">
-          <h3 id="feed-suggest" class="subhead">Competidores sugeridos</h3>
-          <p class="summary">
-            Canales que no sigues con outliers en tus temas{{ similarShown ? '. Primero los de un tamaño parecido al tuyo' : '' }}
-          </p>
-        </div>
-      </div>
-      <ul class="suggestions">
-        <li v-for="s in suggestions" :key="s.channel.id" class="suggestion">
-          <div class="suggestion-head">
-            <img v-if="s.channel.thumbnailUrl" class="avatar avatar-lg" :src="s.channel.thumbnailUrl" alt="" loading="lazy" />
-            <span v-else class="avatar avatar-lg avatar-blank" aria-hidden="true">{{ s.channel.title.charAt(0) }}</span>
+      <!-- c. Competidores sugeridos -->
+      <section v-if="suggestions.length > 0" class="panel" aria-labelledby="feed-suggest">
+        <h2 id="feed-suggest" class="panel-title">Competidores sugeridos</h2>
+        <p class="panel-sub">
+          Canales que no sigues con outliers en tus temas{{ similarShown ? '. Primero los de un tamaño parecido al tuyo' : '' }}
+        </p>
+        <ul class="suggestions">
+          <li v-for="s in suggestions" :key="s.channel.id" class="suggestion">
+            <img v-if="s.channel.thumbnailUrl" class="suggestion-avatar" :src="s.channel.thumbnailUrl" alt="" loading="lazy" />
+            <span v-else class="suggestion-avatar" :style="{ '--hue': hueOf(s.channel.id) }" aria-hidden="true">{{ s.channel.title.charAt(0) }}</span>
             <div class="suggestion-name">
               <p class="suggestion-title">{{ s.channel.title }}</p>
-              <p class="suggestion-subs">
+              <p class="suggestion-meta">
                 {{ s.channel.subscriberCount !== null ? `${compact.format(s.channel.subscriberCount)} suscriptores` : 'Suscriptores ocultos' }}
+                · {{ s.outliers === 1 ? '1 outlier' : `${s.outliers} outliers` }} en tus temas · mejor
+                <span class="suggestion-best" :class="`is-${badgeTier(s.best)}`">{{ formatScore(s.best) }}</span>
               </p>
             </div>
             <FollowButton :channel="{ ...s.channel, followed: false }" :busy-id="following" :demo="isDemo" @follow="$emit('follow', $event)" />
-          </div>
-          <p class="suggestion-meta">
-            <span>{{ s.outliers === 1 ? '1 outlier' : `${s.outliers} outliers` }} en tus temas</span>
-            <span>Mejor <span class="suggestion-best" :class="`tier-${scoreTier(s.best)}`">{{ formatScore(s.best) }}</span></span>
-          </p>
-        </li>
-      </ul>
-    </section>
+          </li>
+        </ul>
+      </section>
+    </div>
 
     <!-- d. Tus logros -->
     <section v-if="trophies.length > 0" id="logros" class="feed-block" aria-labelledby="feed-trophies">
-      <div class="results-head">
-        <div class="results-title">
-          <h3 id="feed-trophies" class="subhead">Tus logros</h3>
-          <p class="summary">Hitos de {{ trophies.length === 1 ? 'tu canal' : 'tus canales' }}, con la fecha en que los alcanzaste</p>
+      <div class="section-head">
+        <div>
+          <h2 id="feed-trophies">Tus logros</h2>
+          <p class="section-sub">Hitos de {{ trophies.length === 1 ? 'tu canal' : 'tus canales' }}, con la fecha en que los alcanzaste</p>
         </div>
       </div>
 
