@@ -17,8 +17,54 @@ const { data: savedData, refresh: refreshSaved } = await useFetch('/api/saved')
 const refreshAll = () => Promise.all([refresh(), refreshTrends(), refreshHome(), refreshSaved()])
 
 // Guardados: se puede guardar cualquier video desde su fila, y aparece en su propia sección.
-type SavedVideo = ScoredVideo & { savedAt: string }
+type SavedVideo = ScoredVideo & { savedAt: string; collectionId: string | null }
+type Collection = { id: string; name: string }
 const savedVideos = computed<SavedVideo[]>(() => savedData.value?.videos ?? [])
+const collections = computed<Collection[]>(() => savedData.value?.collections ?? [])
+/** null = todos; 'none' = los que no están en ninguna colección. */
+const onlyCollection = ref<string | null>(null)
+const collectionCount = (id: string | null) => savedVideos.value.filter((v) => v.collectionId === id).length
+const savedShown = computed(() =>
+  onlyCollection.value === null
+    ? savedVideos.value
+    : savedVideos.value.filter((v) => v.collectionId === (onlyCollection.value === 'none' ? null : onlyCollection.value)),
+)
+const savedSummary = computed(() => {
+  const n = countOf(savedShown.value.length, 'video', 'videos')
+  if (onlyCollection.value === null) return countOf(savedVideos.value.length, 'video guardado', 'videos guardados')
+  if (onlyCollection.value === 'none') return `${n} sin colección`
+  return `${n} en “${collections.value.find((c) => c.id === onlyCollection.value)?.name ?? ''}”`
+})
+const newCollection = ref('')
+const collectionBusy = ref(false)
+const collectionError = ref('')
+async function collectionCall(run: () => Promise<unknown>) {
+  if (collectionBusy.value) return
+  collectionBusy.value = true
+  collectionError.value = ''
+  try {
+    await run()
+    await refreshSaved()
+  } catch (err) {
+    collectionError.value = messageOf(err)
+  } finally {
+    collectionBusy.value = false
+  }
+}
+const addCollection = () =>
+  collectionCall(async () => {
+    if (!newCollection.value.trim()) return
+    await $fetch('/api/collections', { method: 'POST', body: { name: newCollection.value } })
+    newCollection.value = ''
+  })
+const removeCollection = (c: Collection) =>
+  collectionCall(async () => {
+    await $fetch(`/api/collections/${c.id}`, { method: 'DELETE' })
+    if (onlyCollection.value === c.id) onlyCollection.value = null
+  })
+const moveToCollection = (video: ScoredVideo, collectionId: string) =>
+  collectionCall(() => $fetch(`/api/saved/${video.id}`, { method: 'PATCH', body: { collectionId: collectionId || null } }))
+const collectionOf = (video: ScoredVideo) => savedVideos.value.find((v) => v.id === video.id)?.collectionId ?? ''
 const savedIds = computed(() => new Set(savedVideos.value.map((v) => v.id)))
 const savedChannelById = computed(
   () => new Map([...(savedData.value?.channels ?? []), ...channels.value].map((c: Channel) => [c.id, c])),
@@ -785,15 +831,79 @@ async function logIn() {
 
       <!-- Guardados -->
       <template v-else-if="mode === 'saved'">
+        <form class="ask" @submit.prevent="addCollection">
+          <label class="ask-label" for="new-collection">Nueva</label>
+          <input
+            id="new-collection"
+            v-model="newCollection"
+            type="text"
+            maxlength="40"
+            placeholder="ej. Ideas para OBS"
+            autocomplete="off"
+            :disabled="collectionBusy"
+          />
+          <button class="button" type="submit" :disabled="collectionBusy || !newCollection.trim()">Crear colección</button>
+        </form>
+        <div class="form-foot">
+          <p class="form-note">Agrupa tus guardados. Cada video va en una colección o en ninguna; eliminar una colección no borra sus videos.</p>
+          <ul v-if="collections.length > 0" class="chips topics" aria-label="Colecciones">
+            <li v-for="c in collections" :key="c.id" class="chip" :class="{ 'chip-on': onlyCollection === c.id }">
+              <button
+                class="chip-main chip-plain"
+                type="button"
+                :aria-pressed="onlyCollection === c.id"
+                @click="onlyCollection = onlyCollection === c.id ? null : c.id"
+              >
+                <span class="chip-name">{{ c.name }}</span>
+                <span class="chip-subs">{{ collectionCount(c.id) }}</span>
+              </button>
+              <button class="chip-remove" type="button" :aria-label="`Eliminar la colección ${c.name}`" :disabled="collectionBusy" @click="removeCollection(c)">
+                <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                  <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+              </button>
+            </li>
+            <li v-if="collectionCount(null) > 0" class="chip" :class="{ 'chip-on': onlyCollection === 'none' }">
+              <button
+                class="chip-main chip-plain"
+                type="button"
+                :aria-pressed="onlyCollection === 'none'"
+                @click="onlyCollection = onlyCollection === 'none' ? null : 'none'"
+              >
+                <span class="chip-name">Sin colección</span>
+                <span class="chip-subs">{{ collectionCount(null) }}</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+        <p v-if="collectionError" class="banner banner-error form-error" role="alert">
+          <span class="form-error-text">{{ collectionError }}</span>
+        </p>
+
         <VideoResults
-          v-if="savedVideos.length > 0"
+          v-if="savedShown.length > 0"
           v-model:view="view"
-          :videos="savedVideos"
+          :videos="savedShown"
           :channels="savedChannelById"
-          :summary="countOf(savedVideos.length, 'video guardado', 'videos guardados')"
+          :summary="savedSummary"
           own-switch
           @analyze="analyze"
-        />
+        >
+          <template v-if="collections.length > 0" #meta="{ video }">
+            <label class="tool tool-select tool-small" :class="{ 'is-active': collectionOf(video) !== '' }">
+              <span class="sr-only">Colección de “{{ video.title }}”</span>
+              <select :value="collectionOf(video)" :disabled="collectionBusy" @change="moveToCollection(video, ($event.target as HTMLSelectElement).value)">
+                <option value="">Sin colección</option>
+                <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </label>
+          </template>
+        </VideoResults>
+        <div v-else-if="savedVideos.length > 0" class="empty">
+          <p class="empty-title">Esta colección está vacía</p>
+          <p>Elige la colección en cualquier video guardado para moverlo aquí.</p>
+          <button class="button" type="button" @click="onlyCollection = null">Ver todos los guardados</button>
+        </div>
         <div v-else class="empty">
           <p class="empty-title">Todavía no guardas ningún video</p>
           <p>Pulsa “Guardar” en cualquier video de la app, o bajo el título de un video en YouTube con la extensión.</p>

@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { channelAchievements, type Achievement, type ChannelSnapshot } from '~~/shared/achievements'
-import { largestMine, momentumTrend, recentHits, suggestCompetitors, type MomentumPoint } from '~~/shared/home'
+import {
+  currentOutliers,
+  largestMine,
+  momentumTrend,
+  newOutliers,
+  recentHits,
+  rememberSeen,
+  sinceLabel,
+  suggestCompetitors,
+  type MomentumPoint,
+} from '~~/shared/home'
 import type { Channel, ScoredVideo, Topic } from '~~/shared/outliers'
 
 type FoundChannel = Channel & { followed: boolean }
@@ -21,8 +31,44 @@ const props = defineProps<{
 }>()
 defineEmits<{ analyze: [video: ScoredVideo]; follow: [channelId: string]; go: [mode: 'following' | 'trends'] }>()
 
-// a. Éxitos recientes
-const hits = computed(() => recentHits(props.videos))
+// Novedades desde tu última visita. Se recuerdan en este navegador: qué outliers ya viste y cuándo.
+// Durante la misma sesión se compara siempre con la visita anterior, así recargar no las borra.
+const SEEN_KEY = 'ac-outliers:vistos'
+const BASE_KEY = 'ac-outliers:novedades-base'
+const NEWS_SHOWN = 6
+const news = ref<ScoredVideo[]>([])
+const lastVisit = ref<number | null>(null)
+const firstVisit = ref(false)
+const allNews = ref(false)
+const allChannels = computed(() => {
+  const map = new Map<string, Channel>(props.trendChannels.map((c) => [c.id, c]))
+  for (const [id, c] of props.channelById) map.set(id, c)
+  return map
+})
+onMounted(() => {
+  try {
+    let base = JSON.parse(sessionStorage.getItem(BASE_KEY) ?? 'null') as { ids: string[] | null; at: number | null } | null
+    if (!base) {
+      const stored = JSON.parse(localStorage.getItem(SEEN_KEY) ?? 'null') as { ids: string[]; at: number } | null
+      base = { ids: stored?.ids ?? null, at: stored?.at ?? null }
+      sessionStorage.setItem(BASE_KEY, JSON.stringify(base))
+    }
+    const seen = base.ids ? new Set(base.ids) : null
+    const current = currentOutliers(props.videos, props.trendVideos)
+    news.value = newOutliers(current, seen)
+    lastVisit.value = base.at
+    firstVisit.value = seen === null
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ ids: rememberSeen(current, seen), at: Date.now() }))
+  } catch {
+    // Sin almacenamiento del navegador (modo privado estricto): no hay novedades que mostrar.
+  }
+})
+const newsShown = computed(() => (allNews.value ? news.value : news.value.slice(0, NEWS_SHOWN)))
+const newsIds = computed(() => new Set(news.value.map((v) => v.id)))
+const isOwn = (v: ScoredVideo) => props.channelById.has(v.channelId)
+
+// a. Éxitos recientes (sin repetir lo que ya sale en Novedades)
+const hits = computed(() => recentHits(props.videos.filter((v) => !newsIds.value.has(v.id))))
 
 // b. Impulso de tus temas
 const momentumRows = computed(() =>
@@ -98,7 +144,7 @@ function remaining(a: Achievement): string {
 }
 
 const anything = computed(
-  () => hits.value.length > 0 || props.topics.length > 0 || suggestions.value.length > 0 || mine.value.length > 0,
+  () => news.value.length > 0 || hits.value.length > 0 || props.topics.length > 0 || suggestions.value.length > 0 || mine.value.length > 0,
 )
 </script>
 
@@ -111,6 +157,36 @@ const anything = computed(
         <circle cx="8" cy="11" r="1" fill="currentColor" />
       </svg>
       <span class="form-error-text">{{ error }}</span>
+    </p>
+
+    <!-- Novedades desde tu última visita -->
+    <section v-if="news.length > 0" class="feed-block" aria-labelledby="feed-news">
+      <div class="results-head">
+        <div class="results-title">
+          <h3 id="feed-news" class="subhead">Novedades desde tu última visita</h3>
+          <p class="summary">
+            {{ news.length === 1 ? '1 video nuevo llegó' : `${news.length} videos nuevos llegaron` }} a 2× o más en tus canales y tus temas<template v-if="lastVisit"> desde {{ sinceLabel(Date.now() - lastVisit) }}</template>
+          </p>
+        </div>
+      </div>
+      <ol class="videos">
+        <VideoRow v-for="v in newsShown" :key="v.id" :video="v" :channel="allChannels.get(v.channelId)" @analyze="$emit('analyze', $event)">
+          <template #lead>
+            <img v-if="allChannels.get(v.channelId)?.thumbnailUrl" class="avatar" :src="allChannels.get(v.channelId)!.thumbnailUrl!" alt="" loading="lazy" />
+            <span v-else class="avatar avatar-blank" aria-hidden="true">{{ allChannels.get(v.channelId)?.title.charAt(0) }}</span>
+            <span class="video-lead-text">
+              <strong>{{ allChannels.get(v.channelId)?.title }}</strong> {{ isOwn(v) ? 'tiene un nuevo outlier' : 'tiene un nuevo outlier en tus temas' }}
+            </span>
+            <span class="video-lead-age">{{ formatAge(v.ageDays) }}</span>
+          </template>
+        </VideoRow>
+      </ol>
+      <button v-if="news.length > NEWS_SHOWN" class="link-button feed-more" type="button" @click="allNews = !allNews">
+        {{ allNews ? 'Ver menos' : `Ver las ${news.length} novedades` }}
+      </button>
+    </section>
+    <p v-else-if="lastVisit && !firstVisit" class="feed-quiet">
+      Nada nuevo desde tu última visita, {{ sinceLabel(Date.now() - lastVisit) }}: ningún video de tus canales o tus temas cruzó 2× en ese tiempo.
     </p>
 
     <!-- a. Éxitos recientes -->

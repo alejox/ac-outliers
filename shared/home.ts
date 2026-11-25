@@ -126,3 +126,44 @@ export function largestMine(channels: Channel[]): number | null {
   const subs = channels.filter((c) => c.isMine && c.subscriberCount !== null).map((c) => c.subscriberCount!)
   return subs.length > 0 ? Math.max(...subs) : null
 }
+
+// Novedades desde tu última visita
+
+/** Outliers de tus canales que cuentan para las novedades: publicados en estos días. */
+export const NEWS_DAYS = 30
+/** Máximo de IDs que se recuerdan como vistos. */
+export const SEEN_LIMIT = 2000
+
+/**
+ * Los outliers que hay ahora: videos de tus canales de los últimos NEWS_DAYS días y resultados de tus
+ * temas, con score de 2× o más. Sin repetir, del score más alto al más bajo.
+ */
+export function currentOutliers(own: ScoredVideo[], trends: ScoredVideo[]): ScoredVideo[] {
+  const byId = new Map<string, ScoredVideo>()
+  for (const v of [...own.filter((v) => v.ageDays <= NEWS_DAYS), ...trends]) {
+    if (v.score !== null && v.score >= HIT_SCORE && !byId.has(v.id)) byId.set(v.id, v)
+  }
+  return [...byId.values()].sort((a, b) => b.score! - a.score!)
+}
+
+/**
+ * Lo nuevo frente a lo que ya viste: outliers que no estaban la última vez, sea porque se publicaron
+ * después o porque cruzaron 2× después. `seen` null = primera visita: no hay con qué comparar.
+ */
+export function newOutliers(current: ScoredVideo[], seen: Set<string> | null): ScoredVideo[] {
+  return seen === null ? [] : current.filter((v) => !seen.has(v.id))
+}
+
+/** Lo que se recuerda como visto tras esta visita: lo de ahora primero, recortado a SEEN_LIMIT. */
+export function rememberSeen(current: ScoredVideo[], seen: Set<string> | null): string[] {
+  return [...new Set([...current.map((v) => v.id), ...(seen ?? [])])].slice(0, SEEN_LIMIT)
+}
+
+/** "hace 3 h", "hace 2 días": cuánto pasó desde la visita anterior. */
+export function sinceLabel(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000))
+  if (minutes < 60) return `hace ${minutes} min`
+  const hours = Math.round(minutes / 60)
+  if (hours < 48) return `hace ${hours} h`
+  return `hace ${Math.round(hours / 24)} días`
+}

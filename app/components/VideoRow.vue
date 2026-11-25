@@ -54,6 +54,9 @@ const saver = inject<{
           <span v-if="channel?.subscriberCount">{{ compact.format(channel.subscriberCount) }} suscriptores</span>
           <span>{{ formatAge(video.ageDays) }}</span>
         </p>
+        <div v-if="$slots.meta" class="video-meta">
+          <slot name="meta" />
+        </div>
       </div>
 
     </div>

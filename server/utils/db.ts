@@ -378,12 +378,52 @@ export interface SavedVideo {
   video: ScoredVideo
   channel: Channel | null
   savedAt: string
+  collectionId: string | null
+}
+
+export interface Collection {
+  id: string
+  name: string
 }
 
 export async function dbListSaved(): Promise<SavedVideo[]> {
-  const { data, error } = await db().from('saved_videos').select('video, channel, saved_at').order('saved_at', { ascending: false })
+  const { data, error } = await db()
+    .from('saved_videos')
+    .select('video, channel, saved_at, collection_id')
+    .order('saved_at', { ascending: false })
   check(error, 'leer los guardados')
-  return (data ?? []).map((r) => ({ video: r.video as ScoredVideo, channel: (r.channel as Channel | null) ?? null, savedAt: r.saved_at }))
+  return (data ?? []).map((r) => ({
+    video: r.video as ScoredVideo,
+    channel: (r.channel as Channel | null) ?? null,
+    savedAt: r.saved_at,
+    collectionId: r.collection_id ?? null,
+  }))
+}
+
+export async function dbListCollections(): Promise<Collection[]> {
+  const { data, error } = await db().from('collections').select('id, name').order('name')
+  check(error, 'leer las colecciones')
+  return data ?? []
+}
+
+export async function dbCreateCollection(name: string): Promise<Collection> {
+  const { data, error } = await db().from('collections').insert({ name }).select('id, name').single()
+  if (error && /duplicate|unique/i.test(error.message)) {
+    throw createError({ statusCode: 409, message: `Ya tienes una colección llamada “${name}”.` })
+  }
+  check(error, 'crear la colección')
+  return data as Collection
+}
+
+export async function dbDeleteCollection(id: string): Promise<void> {
+  // Sus videos siguen en Guardados, sin colección.
+  const { error } = await db().from('collections').delete().eq('id', id)
+  check(error, 'eliminar la colección')
+}
+
+export async function dbSetSavedCollection(videoId: string, collectionId: string | null): Promise<void> {
+  const { error } = await db().from('saved_videos').update({ collection_id: collectionId }).eq('video_id', videoId)
+  check(error, 'mover el video de colección')
 }
 
 export async function dbIsSaved(videoId: string): Promise<boolean> {
