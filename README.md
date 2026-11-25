@@ -122,6 +122,38 @@ Límites: los logros de videos salen de los videos guardados, que son los últim
 canal; un video más antiguo no cuenta, así que "primer video a 2×" significa el primero entre esos. Las fechas
 de suscriptores y vistas solo existen desde que la app empezó a guardar fotos del canal.
 
+## Extensión del navegador
+
+La carpeta `extension/` es una extensión de Chrome (también sirve en Edge, Brave y Opera) que muestra el score
+de cada video mientras navegas YouTube:
+
+- **Encima de cada miniatura**: en Inicio, búsquedas, recomendados, la barra lateral y los Shorts. Desde 10×
+  el número sale en coral.
+- **Bajo el título del video que estás viendo**: el score, sus vistas y las vistas normales del canal.
+
+Los Shorts se comparan con los Shorts del canal y los videos largos con sus videos largos, igual que en la app.
+
+### Instalarla
+
+1. Abre `chrome://extensions` y activa el **Modo de desarrollador** (arriba a la derecha).
+2. Pulsa **Cargar descomprimida** y elige la carpeta `extension/`.
+3. Fija el icono de AC Outliers en la barra y ábrelo.
+4. Escribe la dirección de tu app (viene puesta `https://ac-outliers.vercel.app`) y la misma contraseña con
+   la que entras a la web. Pulsa **Conectar**.
+
+Desde el mismo panel la apagas, eliges desde qué score mostrar (todos, 2×, 5× o 10×) y ves cuánta cuota gastó hoy.
+
+### Cómo funciona
+
+La extensión nunca habla con YouTube: le manda a tu app los IDs de los videos que hay en pantalla y la app
+responde con el score. La clave de YouTube sigue solo en el servidor.
+
+- Lo normal de cada canal se guarda un día en `channel_baselines`, para que ver la misma página otra vez, o
+  videos del mismo canal, no gaste cuota. Los canales que sigues se calculan con lo que ya está guardado.
+- Cada puntaje se guarda 6 horas dentro del navegador.
+- Cambiar la contraseña de la app desconecta la extensión: hay que volver a conectarla.
+- Las rutas `/api/ext/*` aceptan peticiones solo desde extensiones del navegador.
+
 ## Analizar
 
 El panel compara el video con los demás videos guardados del mismo canal y formato, sin IA
@@ -157,8 +189,10 @@ La cuota gratuita es de 10.000 unidades diarias.
 | Actualizar un canal | 5 unidades |
 | Descubrir | 100 de la búsqueda + 2 por cada canal encontrado (unas 150) |
 | Refrescar un tema de Tendencias | Lo mismo que una búsqueda (unas 150), una vez al día |
+| Extensión: una página de YouTube | 1 por los videos + 2 por cada canal nuevo del día (una página de Inicio con canales nunca vistos, unas 50) |
 
 Con la cuota gratuita alcanzan unas 60 búsquedas al día. Ocho temas gastan unas 1.200 unidades diarias.
+La extensión gasta sobre todo con canales que no ha visto ese día; volver a páginas ya vistas casi no cuesta.
 
 ## Historial
 
@@ -205,6 +239,7 @@ npm test
 
 ```
 app/                 Interfaz (Vue)
+extension/           Extensión de Chrome (se carga tal cual, sin compilar)
 server/api/          Rutas: outliers, canales, búsqueda, actualización
 server/utils/        Cliente de YouTube, Supabase, datos demo
 shared/              Score, filtros, categorías, resumen por canal, Inicio, logros y análisis (lógica pura)

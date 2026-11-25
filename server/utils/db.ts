@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createError } from 'h3'
 import type { ChannelSnapshot } from '~~/shared/achievements'
+import type { Baseline } from '~~/shared/extension'
 import type { MomentumPoint } from '~~/shared/home'
 import type { Channel, PreviousReading, ScoredVideo, Topic, Video } from '~~/shared/outliers'
 
@@ -334,4 +335,39 @@ export async function dbListTopicSnapshots(since: string): Promise<Map<string, M
 export async function dbDeleteTopic(id: string): Promise<void> {
   const { error } = await db().from('topics').delete().eq('id', id)
   check(error, 'quitar el tema')
+}
+
+// Extensión del navegador
+
+/** Lo normal de varios canales ya calculado, en los dos formatos. */
+export async function dbListBaselines(channelIds: string[]): Promise<Baseline[]> {
+  if (channelIds.length === 0) return []
+  const { data, error } = await db()
+    .from('channel_baselines')
+    .select('channel_id, is_short, median_views, sample, computed_at')
+    .in('channel_id', channelIds)
+  check(error, 'leer las referencias de los canales')
+  return (data ?? []).map((r) => ({
+    channelId: r.channel_id,
+    short: r.is_short,
+    median: r.median_views === null ? null : Number(r.median_views),
+    sample: r.sample,
+    computedAt: r.computed_at,
+  }))
+}
+
+export async function dbSaveBaselines(baselines: Baseline[]): Promise<void> {
+  if (baselines.length === 0) return
+  const { error } = await db()
+    .from('channel_baselines')
+    .upsert(
+      baselines.map((b) => ({
+        channel_id: b.channelId,
+        is_short: b.short,
+        median_views: b.median,
+        sample: b.sample,
+        computed_at: b.computedAt,
+      })),
+    )
+  check(error, 'guardar las referencias de los canales')
 }

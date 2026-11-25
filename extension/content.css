@@ -1,0 +1,75 @@
+/* Insignias de AC Outliers dentro de YouTube. Todo lleva el prefijo acx- para no chocar con la página. */
+
+.acx-anchor {
+  position: relative;
+}
+
+.acx-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid #363739;
+  border-radius: 6px;
+  background: rgba(17, 18, 20, 0.92);
+  color: #e6e6e6;
+  font: 600 12px/1 Inter, Roboto, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.acx-badge .acx-dot,
+.acx-chip .acx-dot {
+  display: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff6363;
+  flex: none;
+}
+
+.acx-badge[data-tier='low'] {
+  color: #9c9c9d;
+}
+.acx-badge[data-tier='top'] {
+  color: #ff6363;
+}
+.acx-badge[data-tier='top'] .acx-dot {
+  display: block;
+}
+
+/* Página de un video: una línea bajo el título. */
+.acx-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid #363739;
+  border-radius: 8px;
+  background: #111214;
+  color: #9c9c9d;
+  font: 400 13px/1.35 Inter, Roboto, Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.acx-chip-score {
+  color: #e6e6e6;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.acx-chip[data-tier='top'] .acx-chip-score {
+  color: #ff6363;
+}
+.acx-chip[data-tier='top'] .acx-dot {
+  display: block;
+}

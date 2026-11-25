@@ -151,6 +151,13 @@ export async function fetchLongVideos(channelId: string): Promise<Video[]> {
   return items.map((item) => toVideo(item, false)).filter(isVideo)
 }
 
+/** Solo los últimos Shorts de un canal, para saber qué es normal en ellos. 2 unidades. */
+export async function fetchShortVideos(channelId: string): Promise<Video[]> {
+  const ids = await fetchPlaylistVideoIds(`UUSH${channelId.slice(2)}`)
+  const items = await fetchVideoDetails(ids)
+  return items.map((item) => toVideo(item, true)).filter(isVideo)
+}
+
 /** Videos sueltos por ID, tratados como videos largos. 1 unidad por cada 50. */
 export async function fetchVideosByIds(ids: string[]): Promise<Video[]> {
   const items = await fetchVideoDetails(ids)
