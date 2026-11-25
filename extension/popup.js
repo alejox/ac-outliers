@@ -27,7 +27,7 @@ function paintMinScore(value) {
 }
 
 async function render() {
-  const s = await chrome.storage.local.get(['appUrl', 'connected', 'mode', 'enabled', 'minScore', 'quota'])
+  const s = await chrome.storage.local.get(['appUrl', 'connected', 'mode', 'account', 'enabled', 'minScore', 'quota'])
   $('app-url').value = s.appUrl || DEFAULT_URL
   if (!s.connected) {
     setStatus('')
@@ -39,6 +39,7 @@ async function render() {
   $('enabled').checked = s.enabled ?? true
   paintMinScore(s.minScore ?? 0)
   $('open-app').href = s.appUrl
+  $('account').textContent = s.account ? `Conectada como ${s.account}.` : 'Conectada con la contraseña de la app.'
   const today = new Date().toISOString().slice(0, 10)
   const used = s.quota?.date === today ? s.quota.used : 0
   $('quota').textContent =
@@ -47,7 +48,19 @@ async function render() {
       : `Hoy la extensión gastó ${used.toLocaleString('es')} unidades de la cuota de YouTube.`
 }
 
-$('connect').addEventListener('submit', async (event) => {
+$('google-button').addEventListener('click', async () => {
+  showError('connect-error', '')
+  const reply = await chrome.runtime.sendMessage({ type: 'open-connect' })
+  if (reply?.ok) window.close()
+  else showError('connect-error', reply?.error ?? 'No se pudo abrir la app.')
+})
+
+// Al terminar la conexión en la pestaña de la app, el panel (si sigue abierto) se pone al día.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && 'connected' in changes) render()
+})
+
+$('password-form').addEventListener('submit', async (event) => {
   event.preventDefault()
   showError('connect-error', '')
   $('app-url').removeAttribute('aria-invalid')

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AC Outliers",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Muestra encima de cada video de YouTube cuántas veces superó las vistas normales de su canal.",
   "icons": {
     "16": "icons/icon16.png",
@@ -19,12 +19,30 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://acoutliers.alejoxcode.com/conectar-extension*",
+        "http://localhost:3000/conectar-extension*"
+      ],
+      "js": [
+        "connect.js"
+      ],
       "run_at": "document_idle"
     }
   ]

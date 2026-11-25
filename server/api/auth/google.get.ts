@@ -7,5 +7,10 @@ export default defineEventHandler((event) => {
   }
   const state = randomBytes(16).toString('base64url')
   setCookie(event, 'ac_oauth_state', state, { httpOnly: true, secure: !import.meta.dev, sameSite: 'lax', path: '/', maxAge: 600 })
+  // A dónde volver después de entrar: solo rutas de esta misma app.
+  const next = String(getQuery(event).next ?? '')
+  if (/^\/(?!\/)[\w\-/?=&]*$/.test(next)) {
+    setCookie(event, 'ac_oauth_next', next, { httpOnly: true, secure: !import.meta.dev, sameSite: 'lax', path: '/', maxAge: 600 })
+  }
   return sendRedirect(event, authorizeUrl(event, state))
 })

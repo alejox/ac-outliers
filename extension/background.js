@@ -1,7 +1,7 @@
 // Habla con la app AC Outliers. La página de YouTube nunca ve la dirección de la app ni el token:
 // el script de la página le pide puntajes a este service worker y él hace las peticiones.
 
-const DEFAULTS = { appUrl: 'https://acoutliers.alejoxcode.com', token: '', connected: false, mode: '', enabled: true, minScore: 0 }
+const DEFAULTS = { appUrl: 'https://acoutliers.alejoxcode.com', token: '', connected: false, mode: '', account: '', enabled: true, minScore: 0 }
 /** Los puntajes de un video se reutilizan durante 6 horas: sus vistas casi no cambian el score en ese plazo. */
 const CACHE_HOURS = 6
 const CACHE_LIMIT = 3000
@@ -138,22 +138,52 @@ async function connect({ appUrl, password }) {
   // Cambiar de app o de modo invalida los puntajes guardados.
   const all = await chrome.storage.local.get(null)
   await chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith('s:') || k.startsWith('v:')))
-  await chrome.storage.local.set({ appUrl: base, token: data.token, connected: true, mode: data.mode })
+  await chrome.storage.local.set({ appUrl: base, token: data.token, connected: true, mode: data.mode, account: '' })
   return { mode: data.mode }
+}
+
+async function clearScores() {
+  const all = await chrome.storage.local.get(null)
+  await chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith('s:') || k.startsWith('v:')))
+}
+
+/** Abre la página de la app que conecta la extensión con la cuenta de Google. */
+async function openConnect() {
+  const { appUrl } = await settings()
+  await chrome.tabs.create({ url: `${appUrl.replace(/\/+$/, '')}/conectar-extension` })
+  return {}
+}
+
+/** Recibe el token que dejó la página de conexión (ver connect.js) y lo comprueba con la app. */
+async function googleConnect(token, sender) {
+  let base
+  try {
+    base = new URL(sender?.url ?? '').origin
+  } catch {
+    throw new Error('Esta página no puede conectar la extensión.')
+  }
+  if (typeof token !== 'string' || !token.startsWith('u_')) throw new Error('La página no entregó un acceso válido.')
+  const status = await call('/api/ext/status', { token, base })
+  if (!status.account) throw new Error('La app no reconoció la cuenta. Vuelve a entrar con Google.')
+  await clearScores()
+  await chrome.storage.local.set({ appUrl: base, token, connected: true, mode: status.mode, account: status.account.email })
+  return { account: status.account.email }
 }
 
 async function disconnect() {
   const all = await chrome.storage.local.get(null)
   await chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith('s:') || k.startsWith('v:')))
-  await chrome.storage.local.set({ token: '', connected: false, mode: '' })
+  await chrome.storage.local.set({ token: '', connected: false, mode: '', account: '' })
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, reply) => {
+chrome.runtime.onMessage.addListener((message, sender, reply) => {
   const run = {
     scores: () => scores(message.videos ?? []),
     connect: () => connect(message),
     disconnect: () => disconnect(),
     status: () => call('/api/ext/status'),
+    'open-connect': () => openConnect(),
+    'google-connect': () => googleConnect(message.token, sender),
     video: () => videoInfo(message),
     save: () => save(message),
     follow: () => follow(message),

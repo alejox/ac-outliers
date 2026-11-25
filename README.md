@@ -180,8 +180,11 @@ Los Shorts se comparan con los Shorts del canal y los videos largos con sus vide
 1. Abre `chrome://extensions` y activa el **Modo de desarrollador** (arriba a la derecha).
 2. Pulsa **Cargar descomprimida** y elige la carpeta `extension/`.
 3. Fija el icono de AC Outliers en la barra y ábrelo.
-4. Escribe la dirección de tu app (viene puesta `https://acoutliers.alejoxcode.com`) y la misma contraseña con
-   la que entras a la web. Pulsa **Conectar**.
+4. Pulsa **Conectar con Google**: se abre la página `/conectar-extension` de la app, entras con Google si hace falta, y
+   la extensión queda conectada con tu cuenta (tus canales, guardados y temas). La página entrega un acceso propio
+   para la extensión que vale 180 días.
+   También puedes conectarla con la contraseña de la app (en "Conectar con la contraseña de la app"): así usa los
+   datos del dueño.
 
 Desde el mismo panel la apagas, eliges desde qué score mostrar (todos, 2×, 5× o 10×) y ves cuánta cuota gastó hoy.
 

@@ -38,5 +38,8 @@ export default defineEventHandler(async (event) => {
   }
 
   setUserCookie(event, user.id)
+  const next = getCookie(event, 'ac_oauth_next')
+  deleteCookie(event, 'ac_oauth_next', { path: '/' })
+  if (next && /^\/(?!\/)/.test(next)) return sendRedirect(event, next)
   return sendRedirect(event, channel ? '/?seccion=mi-canal' : '/')
 })

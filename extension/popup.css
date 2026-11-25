@@ -276,3 +276,41 @@ input[role='switch']:checked::after {
 .foot-link:hover {
   color: var(--ash);
 }
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--smoke);
+  font-size: 12px;
+  text-align: center;
+}
+.connect .error {
+  margin-top: 12px;
+}
+.other {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.other summary {
+  color: var(--ash);
+  font-size: 12px;
+  cursor: pointer;
+}
+.other summary:hover {
+  color: var(--mist);
+}
+.other form {
+  margin-top: 12px;
+}
+.secondary-button {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--obsidian);
+  color: var(--mist);
+}
+.secondary-button:hover {
+  background: var(--graphite);
+}
+.meta + .meta {
+  margin-top: 2px;
+}
