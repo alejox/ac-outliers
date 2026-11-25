@@ -114,11 +114,10 @@ const LOGIN_ERRORS: Record<string, string> = {
   error: 'Google no completó la entrada. Vuelve a intentarlo.',
 }
 const accountOpen = ref(false)
+/** Sale de la app (Google y contraseña) y vuelve a la página pública. */
 async function logOut() {
   await $fetch('/api/auth/logout', { method: 'POST' })
-  accountOpen.value = false
-  await Promise.all([refreshMe(), refreshAll()])
-  if (mode.value === 'mine') mode.value = 'home'
+  window.location.assign('/')
 }
 const MODE_TITLES: Record<Mode, string> = {
   home: 'Inicio',
@@ -526,6 +525,7 @@ async function logIn() {
           <span class="nav-action-label" :class="{ 'is-busy': busy === 'sync' }">{{ busy === 'sync' ? progress : 'Actualizar datos' }}</span>
         </button>
         <span v-else class="tag">Demo</span>
+        <button v-if="!me?.user && me?.password && !isDemo" class="button button-small account-out" type="button" @click="logOut">Salir</button>
         <div v-if="me?.user" class="account">
           <button class="account-button" type="button" :aria-expanded="accountOpen" aria-label="Tu cuenta" @click="accountOpen = !accountOpen">
             <img v-if="me.user.picture" :src="me.user.picture" alt="" referrerpolicy="no-referrer" />
