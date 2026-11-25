@@ -21,6 +21,26 @@ const analysis = computed(() =>
 )
 const format = computed(() => (props.video?.isShort ? 'Shorts' : 'videos largos'))
 
+// Cambios de título y miniatura: solo se piden si la fila ya sabe que el video cambió.
+type Change = { kind: 'title' | 'thumbnail'; before: string | null; after: string | null; changedAt: string }
+const videoChanges = inject<Ref<Record<string, unknown[]>> | null>('videoChanges', null)
+const changes = ref<Change[]>([])
+watch(
+  () => props.video?.id,
+  async (id) => {
+    changes.value = []
+    if (!id || !videoChanges?.value[id]?.length) return
+    try {
+      const res = await $fetch<{ changes: Change[] }>('/api/video-changes', { query: { id } })
+      if (props.video?.id === id) changes.value = res.changes
+    } catch {
+      // Sin cambios que mostrar; el resto del análisis sigue igual.
+    }
+  },
+  { immediate: true },
+)
+const ageOf = (at: string) => formatAge((Date.now() - new Date(at).getTime()) / 86_400_000)
+
 watch(
   () => props.video,
   async (video, before) => {
@@ -124,6 +144,34 @@ onBeforeUnmount(() => document.documentElement.classList.remove('has-drawer'))
           <ScoreStrip v-if="video.score !== null" :score="video.score" />
           <p v-else class="score-missing">Pocos videos para comparar</p>
         </div>
+
+        <section v-if="changes.length > 0" class="changes" aria-labelledby="changes-title">
+          <h3 id="changes-title" class="changes-title">Cambios del creador</h3>
+          <ol class="changes-list">
+            <li v-for="(c, i) in changes" :key="i" class="change">
+              <p class="change-head">
+                {{ c.kind === 'title' ? 'Cambió el título' : 'Cambió la miniatura' }} <span class="change-age">{{ ageOf(c.changedAt) }}</span>
+              </p>
+              <dl v-if="c.kind === 'title'" class="change-titles">
+                <div><dt>Antes</dt><dd>{{ c.before }}</dd></div>
+                <div><dt>Ahora</dt><dd>{{ c.after }}</dd></div>
+              </dl>
+              <div v-else class="change-thumbs">
+                <figure>
+                  <img v-if="c.before" :src="c.before" alt="Miniatura anterior" />
+                  <span v-else class="change-missing">Sin copia</span>
+                  <figcaption>Antes</figcaption>
+                </figure>
+                <figure>
+                  <img v-if="c.after" :src="c.after" alt="Miniatura nueva" />
+                  <span v-else class="change-missing">Sin copia</span>
+                  <figcaption>Ahora</figcaption>
+                </figure>
+              </div>
+            </li>
+          </ol>
+          <p class="analysis-note">Si cambió después de despegar, el score mide la versión nueva. Se revisa una vez al día.</p>
+        </section>
 
         <p v-if="error" class="analysis-note notice-error" role="alert">{{ error }}</p>
         <p v-else-if="!analysis" class="analysis-note" aria-live="polite">Leyendo los videos guardados del canal…</p>

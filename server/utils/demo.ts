@@ -1,3 +1,4 @@
+import type { ChangeKind, VideoChange } from '~~/shared/changes'
 import type { ChannelSnapshot } from '~~/shared/achievements'
 import { topicMomentum, type MomentumPoint } from '~~/shared/home'
 import { scoreVideos, type Channel, type ScoredVideo, type Topic, type Video } from '~~/shared/outliers'
@@ -258,4 +259,39 @@ export function demoTopics(now: Date = new Date()): DemoTopicData[] {
       momentum,
     }
   })
+}
+
+// Cambios de título y miniatura de ejemplo: dos videos recientes de los canales demo.
+
+function demoChangedVideos(now: Date = new Date()) {
+  // Dos outliers recientes, para que se vean con los filtros de partida.
+  const recent = scoreVideos(demoData(now).videos, now)
+    .filter((v) => !v.isShort && v.ageDays < 85 && (v.score ?? 0) >= 2)
+    .sort((a, b) => b.score! - a.score!)
+  return { title: recent[0], thumbnail: recent[1] }
+}
+
+const demoThumb = (hue: number, label: string) =>
+  `data:image/svg+xml;base64,${Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 45% 35%)"/><stop offset="1" stop-color="hsl(${hue + 40} 50% 14%)"/></linearGradient></defs><rect width="320" height="180" fill="url(#g)"/><text x="20" y="150" font-family="Arial Black,Arial" font-weight="900" font-size="30" fill="#fff">${label}</text></svg>`,
+  ).toString('base64')}`
+
+export function demoChanges(videos: Video[], now: Date = new Date()): Record<string, { kind: ChangeKind; at: string }[]> {
+  const { title, thumbnail } = demoChangedVideos(now)
+  const out: Record<string, { kind: ChangeKind; at: string }[]> = {}
+  const ids = new Set(videos.map((v) => v.id))
+  if (title && ids.has(title.id)) out[title.id] = [{ kind: 'title', at: new Date(now.getTime() - 3 * 86_400_000).toISOString() }]
+  if (thumbnail && ids.has(thumbnail.id)) out[thumbnail.id] = [{ kind: 'thumbnail', at: new Date(now.getTime() - 5 * 86_400_000).toISOString() }]
+  return out
+}
+
+export function demoVideoChanges(id: string, now: Date = new Date()): VideoChange[] {
+  const { title, thumbnail } = demoChangedVideos(now)
+  if (title?.id === id) {
+    return [{ videoId: id, kind: 'title', before: 'Mi experiencia después de un mes', after: title.title, changedAt: new Date(now.getTime() - 3 * 86_400_000).toISOString() }]
+  }
+  if (thumbnail?.id === id) {
+    return [{ videoId: id, kind: 'thumbnail', before: demoThumb(220, 'ANTES'), after: demoThumb(10, 'AHORA'), changedAt: new Date(now.getTime() - 5 * 86_400_000).toISOString() }]
+  }
+  return []
 }

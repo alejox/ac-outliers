@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { Channel, ScoredVideo } from '~~/shared/outliers'
 
-defineProps<{ video: ScoredVideo; channel?: Channel }>()
+const props = defineProps<{ video: ScoredVideo; channel?: Channel }>()
 defineEmits<{ analyze: [video: ScoredVideo] }>()
+
+const videoChanges = inject<Ref<Record<string, { kind: 'title' | 'thumbnail'; at: string }[]>> | null>('videoChanges', null)
+const changed = computed(() => changeLabel(videoChanges?.value[props.video.id] ?? []))
 
 /** Lo da app.vue: guardar o quitar el video de Guardados. Sin él (modo demo) no hay botón. */
 const saver = inject<{
@@ -54,6 +57,7 @@ const saver = inject<{
           <span v-if="channel?.subscriberCount">{{ compact.format(channel.subscriberCount) }} suscriptores</span>
           <span>{{ formatAge(video.ageDays) }}</span>
         </p>
+        <p v-if="changed" class="changed">{{ changed }}</p>
         <div v-if="$slots.meta" class="video-meta">
           <slot name="meta" />
         </div>

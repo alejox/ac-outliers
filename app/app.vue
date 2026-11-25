@@ -99,6 +99,9 @@ const isDemo = computed(() => data.value?.demo ?? false)
 const isOpen = computed(() => data.value?.open ?? false)
 const needsLogin = computed(() => loadError.value?.statusCode === 401)
 const channelById = computed(() => new Map(channels.value.map((c) => [c.id, c])))
+/** Cambios de título y miniatura de los últimos 90 días, por video: los muestran las filas y Analizar. */
+const videoChanges = computed<Record<string, { kind: 'title' | 'thumbnail'; at: string }[]>>(() => data.value?.changes ?? {})
+provide('videoChanges', videoChanges)
 
 const mode = ref<Mode>('home')
 const MODE_TITLES: Record<Mode, string> = {
