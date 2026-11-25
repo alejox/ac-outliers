@@ -9,12 +9,12 @@ const enter = computed(() => (props.google ? '/api/auth/google' : '#entrar'))
 // Demostración: una página de resultados de YouTube de ejemplo, con y sin el score.
 const demo = [
   { score: 1.1, title: 'Mi Stream Deck por 15 dólares', src: '/images/thumbnails/thumb-06.webp', channel: 'Taller de Directos', views: '3,6 mil', duration: '8:40' },
-  { score: 13, title: 'Probé un Stream Deck casero durante 30 días', channel: 'Código en Pijama', views: '134,2 mil', duration: '14:08' },
+  { score: 13, title: 'Probé un Stream Deck casero durante 30 días', src: '/images/thumbnails/thumb-01.webp', channel: 'Código en Pijama', views: '134,2 mil', duration: '14:08' },
   { score: 0.8, title: 'Stream Deck casero con Arduino, parte 2', src: '/images/thumbnails/thumb-03.webp', channel: 'Byte a Byte', views: '14,5 mil', duration: '18:02' },
-  { score: 5.9, title: 'Convertí un teclado viejo en Stream Deck', channel: 'La Terminal de Nico', views: '752,2 mil', duration: '5:18' },
-  { score: 1.4, title: 'Los mejores botones para tu directo', channel: 'Pixel Forja', views: '67,1 mil', duration: '11:20' },
+  { score: 5.9, title: 'Convertí un teclado viejo en Stream Deck', src: '/images/thumbnails/thumb-02.webp', channel: 'La Terminal de Nico', views: '752,2 mil', duration: '5:18' },
+  { score: 1.4, title: 'Los mejores botones para tu directo', src: '/images/thumbnails/thumb-04.webp', channel: 'Pixel Forja', views: '67,1 mil', duration: '11:20' },
   { score: 25, title: '¿Vale la pena un Stream Deck casero?', src: '/images/thumbnails/thumb-08.webp', channel: 'Código en Pijama', views: '255,9 mil', duration: '15:59' },
-  { score: 2.3, title: 'Macros en OBS sin gastar nada', channel: 'Taller de Directos', views: '7,6 mil', duration: '9:55' },
+  { score: 2.3, title: 'Macros en OBS sin gastar nada', src: '/images/thumbnails/thumb-07.webp', channel: 'Taller de Directos', views: '7,6 mil', duration: '9:55' },
   { score: 0.6, title: 'Mi escritorio de streaming 2026', src: '/images/thumbnails/thumb-05.webp', channel: 'Pixel Forja', views: '28,7 mil', duration: '21:07' },
 ]
 const showScore = ref(true)
