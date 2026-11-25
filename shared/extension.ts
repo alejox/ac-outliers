@@ -84,7 +84,7 @@ export function scoreAgainst(views: number, baseline: number | null): number | n
 }
 
 /** Puntajes inventados pero estables por ID, para probar la extensión contra la app en modo demo. */
-export function demoScores(requests: VideoRequest[]): ExtScore[] {
+export function demoScores(requests: VideoRequest[], now: Date = new Date()): ExtScore[] {
   return requests.map(({ id, short }) => {
     let h = 2166136261
     for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619)
@@ -93,8 +93,8 @@ export function demoScores(requests: VideoRequest[]): ExtScore[] {
     const score = Math.round((r < 0.7 ? 0.3 + r * 1.6 : r < 0.92 ? 1.5 + (r - 0.7) * 20 : 6 + (r - 0.92) * 150) * 10) / 10
     const baseline = 10_000 + Math.round(r * 90_000)
     const views = Math.round(score * baseline)
-    const publishedAt = new Date(Date.now() - (1 + Math.floor(r * 400)) * 3_600_000).toISOString()
-    return { id, channelId: 'demo', short, views, publishedAt, viewsPerHour: paceSince(views, publishedAt), baseline, score }
+    const publishedAt = new Date(now.getTime() - (1 + Math.floor(r * 400)) * 3_600_000).toISOString()
+    return { id, channelId: 'demo', short, views, publishedAt, viewsPerHour: paceSince(views, publishedAt, now), baseline, score }
   })
 }
 

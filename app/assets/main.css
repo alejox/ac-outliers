@@ -3156,3 +3156,245 @@ input[type='search']::-webkit-search-cancel-button {
   color: var(--smoke);
   font-size: 12px;
 }
+
+/* Mi canal (YouTube Analytics) */
+.mine-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 32px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--line-strong);
+}
+.kpis div {
+  padding: 16px;
+  background: var(--obsidian);
+}
+.kpis dt {
+  color: var(--ash);
+  font-size: 13px;
+}
+.kpis dd {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+.kpis.is-loading,
+.sources:has(+ .is-loading) {
+  opacity: 0.6;
+}
+.mine-block {
+  margin-bottom: 32px;
+}
+.mine-block .summary {
+  margin: 2px 0 12px;
+}
+.mine-block .subhead + .sources {
+  margin-top: 12px;
+}
+.mine-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.sources,
+.terms,
+.related {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.source {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 48px 80px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.source-bar,
+.term-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--graphite);
+}
+.source-bar span,
+.term-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--mist);
+}
+.source-share,
+.source-views,
+.term-views {
+  color: var(--ash);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.source-share {
+  color: var(--white);
+}
+.term {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--obsidian);
+  font-size: 13px;
+}
+.term-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.term-bar span {
+  background: var(--ash);
+}
+.related-item {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--obsidian);
+}
+.related-thumb {
+  position: relative;
+  text-decoration: none;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 6px;
+}
+.related-thumb img,
+.related-thumb .thumb-blank {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.related-text a {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  text-decoration: none;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.related-text a:hover {
+  text-decoration: underline;
+}
+.related-text .byline {
+  margin-top: 2px;
+}
+@media (max-width: 720px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mine-columns {
+    grid-template-columns: 1fr;
+  }
+  .source {
+    grid-template-columns: minmax(0, 1fr) 48px;
+    row-gap: 4px;
+  }
+  .source-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .source-views {
+    display: none;
+  }
+}
+
+/* Entrada con Google y la cuenta en la barra */
+.login-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.login-google svg {
+  flex: none;
+}
+.login-or {
+  margin: 4px 0 8px;
+  color: var(--smoke);
+  font-size: 12px;
+  text-align: center;
+}
+.account {
+  position: relative;
+}
+.account-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--graphite);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--obsidian);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+}
+.account-menu p {
+  margin: 0;
+  color: var(--ash);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.account-menu strong {
+  display: block;
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 500;
+}
+.nav-action {
+  gap: 8px;
+}

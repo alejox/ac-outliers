@@ -131,6 +131,28 @@ Límites: los logros de videos salen de los videos guardados, que son los últim
 canal; un video más antiguo no cuenta, así que "primer video a 2×" significa el primero entre esos. Las fechas
 de suscriptores y vistas solo existen desde que la app empezó a guardar fotos del canal.
 
+## Entrar con Google y Mi canal
+
+Además de la contraseña, se puede entrar con una cuenta de Google. Al entrar, la app detecta el canal de YouTube de
+esa cuenta, lo sigue y lo marca como tuyo, y habilita **Mi canal**: vistas, horas vistas, duración media, suscriptores,
+de dónde vienen las vistas, los términos de búsqueda que te encuentran y los videos junto a los que YouTube te sugiere.
+Usa YouTube Analytics, que no gasta la cuota de la YouTube Data API.
+
+Configuración (proyecto `ac-outliers` de Google Cloud):
+
+1. Habilita **YouTube Data API v3** y **YouTube Analytics API**.
+2. En la pantalla de consentimiento: página principal `https://acoutliers.alejoxcode.com`, política
+   `https://acoutliers.alejoxcode.com/privacidad/`, dominio autorizado `alejoxcode.com`, y los permisos `openid`,
+   `email`, `profile`, `youtube.readonly` y `yt-analytics.readonly`.
+3. Crea un cliente OAuth de tipo **Aplicación web** con el URI de redirección `https://acoutliers.alejoxcode.com/api/auth/callback`
+   (y `http://localhost:3000/api/auth/callback` para desarrollo).
+4. En Vercel, define `NUXT_GOOGLE_CLIENT_ID` y `NUXT_GOOGLE_CLIENT_SECRET`.
+
+Mientras la app esté **en prueba** en Google, solo entran las cuentas agregadas como usuarios de prueba. Por ahora todas
+las cuentas que entran ven los mismos canales y temas: **no publiques la app en Google antes de separar los datos por
+usuario**. El permiso de Google se guarda cifrado con una clave derivada de `NUXT_GOOGLE_CLIENT_SECRET`; si cambias el
+secreto, hay que volver a entrar.
+
 ## Extensión del navegador
 
 La carpeta `extension/` es una extensión de Chrome (también sirve en Edge, Brave y Opera) que muestra el score

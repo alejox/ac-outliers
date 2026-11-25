@@ -70,8 +70,8 @@ describe('scoreAgainst', () => {
 
 describe('demoScores', () => {
   it('es estable y coherente', () => {
-    const [a] = demoScores([{ id: 'dQw4w9WgXcQ', short: false }])
-    const [b] = demoScores([{ id: 'dQw4w9WgXcQ', short: false }])
+    const [a] = demoScores([{ id: 'dQw4w9WgXcQ', short: false }], NOW)
+    const [b] = demoScores([{ id: 'dQw4w9WgXcQ', short: false }], NOW)
     expect(a).toEqual(b)
     expect(a!.score).toBeGreaterThan(0)
   })

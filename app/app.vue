@@ -4,12 +4,14 @@ import { CATEGORY_OPTIONS, categoryName } from '~~/shared/categories'
 import { channelStats } from '~~/shared/channel-stats'
 import { applyFilters, defaultFilters, topWords } from '~~/shared/filters'
 
-type Mode = 'home' | 'trends' | 'following' | 'discover' | 'channels' | 'saved'
+type Mode = 'home' | 'mine' | 'trends' | 'following' | 'discover' | 'channels' | 'saved'
 type FoundChannel = Channel & { followed: boolean }
 type TrendTopic = Topic & { count: number }
 type TrendVideo = ScoredVideo & { topicIds: string[] }
 
 const { data, error: loadError, refresh } = await useFetch('/api/outliers')
+/** Quién entró con Google (si alguien) y qué formas de entrar ofrece la app. */
+const { data: me, refresh: refreshMe } = await useFetch('/api/me')
 const { data: trendData, refresh: refreshTrends } = await useFetch('/api/trends')
 const { data: homeData, refresh: refreshHome } = await useFetch('/api/home')
 /** Todo lo que se lee de la base: tras cualquier cambio se vuelve a pedir junto. */
@@ -103,7 +105,21 @@ const channelById = computed(() => new Map(channels.value.map((c) => [c.id, c]))
 const videoChanges = computed<Record<string, { kind: 'title' | 'thumbnail'; at: string }[]>>(() => data.value?.changes ?? {})
 provide('videoChanges', videoChanges)
 
-const mode = ref<Mode>('home')
+const route = useRoute()
+const mode = ref<Mode>(route.query.seccion === 'mi-canal' ? 'mine' : 'home')
+const hasMyChannel = computed(() => isDemo.value || Boolean(me.value?.user?.channelId))
+const LOGIN_ERRORS: Record<string, string> = {
+  cancelado: 'Cancelaste la entrada con Google.',
+  vencido: 'La entrada con Google tardó demasiado. Vuelve a intentarlo.',
+  error: 'Google no completó la entrada. Vuelve a intentarlo.',
+}
+const accountOpen = ref(false)
+async function logOut() {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  accountOpen.value = false
+  await Promise.all([refreshMe(), refreshAll()])
+  if (mode.value === 'mine') mode.value = 'home'
+}
 const MODE_TITLES: Record<Mode, string> = {
   home: 'Inicio',
   trends: 'Tendencias',
@@ -111,6 +127,7 @@ const MODE_TITLES: Record<Mode, string> = {
   discover: 'Descubrir',
   channels: 'Comparar canales',
   saved: 'Guardados',
+  mine: 'Mi canal',
 }
 const MODE_LEDES: Record<Mode, string> = {
   home: 'Lo que pasó en tus canales y tus temas.',
@@ -119,6 +136,7 @@ const MODE_LEDES: Record<Mode, string> = {
   discover: 'Busca en todo YouTube y compara cada video con lo normal de su canal.',
   channels: 'Cómo le va a cada canal que sigues.',
   saved: 'Los videos que guardaste desde la app o desde YouTube, con el score que tenían ese día.',
+  mine: 'De dónde vienen las vistas de tu canal, qué buscan para encontrarte y qué videos te recomiendan.',
 }
 const view = ref<'list' | 'grid'>('list')
 // En celular las secciones se desplazan en horizontal: la activa siempre queda a la vista.
@@ -477,6 +495,7 @@ async function logIn() {
 
       <nav ref="modesEl" class="modes" :class="{ 'more-right': modesMore.right, 'more-left': modesMore.left }" aria-label="Sección" @scroll.passive="measureModes">
         <button type="button" :aria-pressed="mode === 'home'" @click="mode = 'home'">Inicio</button>
+        <button v-if="hasMyChannel" type="button" :aria-pressed="mode === 'mine'" @click="mode = 'mine'">Mi canal</button>
         <button type="button" :aria-pressed="mode === 'trends'" @click="mode = 'trends'">Tendencias</button>
         <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
         <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
@@ -507,6 +526,18 @@ async function logIn() {
           <span class="nav-action-label" :class="{ 'is-busy': busy === 'sync' }">{{ busy === 'sync' ? progress : 'Actualizar datos' }}</span>
         </button>
         <span v-else class="tag">Demo</span>
+        <div v-if="me?.user" class="account">
+          <button class="account-button" type="button" :aria-expanded="accountOpen" aria-label="Tu cuenta" @click="accountOpen = !accountOpen">
+            <img v-if="me.user.picture" :src="me.user.picture" alt="" referrerpolicy="no-referrer" />
+            <span v-else>{{ (me.user.name ?? me.user.email).charAt(0).toUpperCase() }}</span>
+          </button>
+          <div v-if="accountOpen" class="account-menu">
+            <p><strong>{{ me.user.name ?? me.user.email }}</strong>{{ me.user.email }}</p>
+            <p v-if="me.user.channelTitle">Canal: {{ me.user.channelTitle }}</p>
+            <p v-else>Tu cuenta no tiene canal de YouTube.</p>
+            <button class="button button-small" type="button" @click="logOut">Salir</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -520,11 +551,26 @@ async function logIn() {
         <span>AC Outliers</span>
       </p>
       <p class="login-lede">Videos que rindieron muy por encima de lo normal en su propio canal.</p>
-      <label for="password">Contraseña</label>
-      <input id="password" v-model="password" type="password" autocomplete="current-password" :disabled="loggingIn" />
-      <button class="button button-primary" type="submit" :disabled="loggingIn">
-        {{ loggingIn ? 'Entrando' : 'Entrar' }}
-      </button>
+      <template v-if="me?.google">
+        <a class="button button-primary login-google" href="/api/auth/google">
+          <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+            <path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z" />
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+          </svg>
+          Entrar con Google
+        </a>
+        <p v-if="route.query.login" class="notice notice-error" role="alert">{{ LOGIN_ERRORS[String(route.query.login)] ?? LOGIN_ERRORS.error }}</p>
+        <p v-if="me?.password" class="login-or">o con la contraseña de la app</p>
+      </template>
+      <template v-if="!me?.google || me?.password">
+        <label for="password">Contraseña</label>
+        <input id="password" v-model="password" type="password" autocomplete="current-password" :disabled="loggingIn" />
+        <button class="button" :class="{ 'button-primary': !me?.google }" type="submit" :disabled="loggingIn">
+          {{ loggingIn ? 'Entrando' : 'Entrar' }}
+        </button>
+      </template>
       <p v-if="loginError" class="notice notice-error" role="alert">{{ loginError }}</p>
     </form>
 
@@ -655,9 +701,12 @@ async function logIn() {
     <section v-if="!needsLogin" id="seccion" class="ranking" aria-labelledby="ranking-title">
       <h2 id="ranking-title" class="sr-only">Videos y canales</h2>
 
+      <!-- Mi canal: YouTube Analytics de la cuenta que entró con Google -->
+      <MyChannel v-if="mode === 'mine'" />
+
       <!-- Inicio: lo que pasó en tus canales y tus temas -->
       <HomeFeed
-        v-if="mode === 'home'"
+        v-else-if="mode === 'home'"
         :videos="videos"
         :channels="channels"
         :channel-by-id="channelById"
