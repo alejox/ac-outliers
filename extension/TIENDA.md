@@ -56,7 +56,7 @@ Mostrar en YouTube cuántas veces cada video superó las vistas normales de su c
 - No uso ni transfiero datos de usuarios para fines no relacionados con el propósito único del elemento.
 - No uso ni transfiero datos de usuarios para determinar la solvencia crediticia o para préstamos.
 
-**URL de la política de privacidad:** https://ac-outliers.vercel.app/privacidad/
+**URL de la política de privacidad:** https://acoutliers.alejoxcode.com/privacidad/
 
 ## Distribución
 

@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id)
-const DEFAULT_URL = 'https://ac-outliers.vercel.app'
+const DEFAULT_URL = 'https://acoutliers.alejoxcode.com'
 
 function show(view) {
   $('connect').hidden = view !== 'connect'
