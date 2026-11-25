@@ -7,11 +7,14 @@ export default defineEventHandler((event) => {
   if (!appPassword) return
 
   const path = event.path.split('?')[0]!
+  if (event.method === 'OPTIONS') return
   // El cron tiene su propia protección (CRON_SECRET).
-  if (!path.startsWith('/api/') || path === '/api/login' || path.startsWith('/api/cron/')) return
+  if (!path.startsWith('/api/') || path === '/api/login' || path === '/api/ext/connect' || path.startsWith('/api/cron/')) return
 
-  const cookie = getCookie(event, SESSION_COOKIE) ?? ''
-  if (!safeEqual(cookie, sessionToken(appPassword))) {
+  // La web entra con la cookie de sesión; la extensión del navegador manda el mismo valor como token.
+  const bearer = /^Bearer (.+)$/.exec(getRequestHeader(event, 'authorization') ?? '')?.[1]
+  const given = bearer ?? getCookie(event, SESSION_COOKIE) ?? ''
+  if (!safeEqual(given, sessionToken(appPassword))) {
     throw createError({ statusCode: 401, message: 'Escribe la contraseña para entrar.' })
   }
 })
