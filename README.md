@@ -65,6 +65,8 @@ Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de 
   varios). Tus canales llevan la insignia "Tuyo" y activan "Tus logros" en Inicio.
 - **Analizar**: cada video en lista tiene el botón "Analizar", que abre un panel con por qué destaca frente
   a los demás videos guardados de su canal en el mismo formato (ver [Analizar](#analizar)).
+- **Guardados**: cada video en lista tiene "Guardar"; también se guarda desde YouTube con la extensión. Se
+  guarda la foto del video con su score de ese día, así que verlos no gasta cuota.
 - **Comparar canales**: una fila por canal con suscriptores, vistas normales, alcance (vistas normales
   ÷ suscriptores), subidas en 30 días, cuántos videos llegaron a 2× en 90 días y su mejor video.
 
@@ -129,7 +131,8 @@ de cada video mientras navegas YouTube:
 
 - **Encima de cada miniatura**: en Inicio, búsquedas, recomendados, la barra lateral y los Shorts. Desde 10×
   el número sale en coral.
-- **Bajo el título del video que estás viendo**: el score, sus vistas y las vistas normales del canal.
+- **Bajo el título del video que estás viendo**: el score, sus vistas y las vistas normales del canal, con
+  botones para **guardar** el video, **seguir** su canal y ver o copiar sus **etiquetas**.
 
 Los Shorts se comparan con los Shorts del canal y los videos largos con sus videos largos, igual que en la app.
 
@@ -189,6 +192,8 @@ La cuota gratuita es de 10.000 unidades diarias.
 | Actualizar un canal | 5 unidades |
 | Descubrir | 100 de la búsqueda + 2 por cada canal encontrado (unas 150) |
 | Refrescar un tema de Tendencias | Lo mismo que una búsqueda (unas 150), una vez al día |
+| Guardar un video | 0 si es de un canal que sigues; si no, de 2 a 4 |
+| Extensión: abrir un video (etiquetas) | 1, una vez cada 6 horas por video |
 | Extensión: una página de YouTube | 1 por los videos + 2 por cada canal nuevo del día (una página de Inicio con canales nunca vistos, unas 50) |
 
 Con la cuota gratuita alcanzan unas 60 búsquedas al día. Ocho temas gastan unas 1.200 unidades diarias.

@@ -371,3 +371,33 @@ export async function dbSaveBaselines(baselines: Baseline[]): Promise<void> {
     )
   check(error, 'guardar las referencias de los canales')
 }
+
+// Guardados
+
+export interface SavedVideo {
+  video: ScoredVideo
+  channel: Channel | null
+  savedAt: string
+}
+
+export async function dbListSaved(): Promise<SavedVideo[]> {
+  const { data, error } = await db().from('saved_videos').select('video, channel, saved_at').order('saved_at', { ascending: false })
+  check(error, 'leer los guardados')
+  return (data ?? []).map((r) => ({ video: r.video as ScoredVideo, channel: (r.channel as Channel | null) ?? null, savedAt: r.saved_at }))
+}
+
+export async function dbIsSaved(videoId: string): Promise<boolean> {
+  const { data, error } = await db().from('saved_videos').select('video_id').eq('video_id', videoId).maybeSingle()
+  check(error, 'leer los guardados')
+  return data !== null
+}
+
+export async function dbSaveVideo(video: ScoredVideo, channel: Channel | null): Promise<void> {
+  const { error } = await db().from('saved_videos').upsert({ video_id: video.id, video, channel, saved_at: new Date().toISOString() })
+  check(error, 'guardar el video')
+}
+
+export async function dbUnsaveVideo(videoId: string): Promise<void> {
+  const { error } = await db().from('saved_videos').delete().eq('video_id', videoId)
+  check(error, 'quitar el video de guardados')
+}

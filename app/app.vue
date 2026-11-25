@@ -4,7 +4,7 @@ import { CATEGORY_OPTIONS, categoryName } from '~~/shared/categories'
 import { channelStats } from '~~/shared/channel-stats'
 import { applyFilters, defaultFilters, topWords } from '~~/shared/filters'
 
-type Mode = 'home' | 'trends' | 'following' | 'discover' | 'channels'
+type Mode = 'home' | 'trends' | 'following' | 'discover' | 'channels' | 'saved'
 type FoundChannel = Channel & { followed: boolean }
 type TrendTopic = Topic & { count: number }
 type TrendVideo = ScoredVideo & { topicIds: string[] }
@@ -13,7 +13,39 @@ const { data, error: loadError, refresh } = await useFetch('/api/outliers')
 const { data: trendData, refresh: refreshTrends } = await useFetch('/api/trends')
 const { data: homeData, refresh: refreshHome } = await useFetch('/api/home')
 /** Todo lo que se lee de la base: tras cualquier cambio se vuelve a pedir junto. */
-const refreshAll = () => Promise.all([refresh(), refreshTrends(), refreshHome()])
+const { data: savedData, refresh: refreshSaved } = await useFetch('/api/saved')
+const refreshAll = () => Promise.all([refresh(), refreshTrends(), refreshHome(), refreshSaved()])
+
+// Guardados: se puede guardar cualquier video desde su fila, y aparece en su propia sección.
+type SavedVideo = ScoredVideo & { savedAt: string }
+const savedVideos = computed<SavedVideo[]>(() => savedData.value?.videos ?? [])
+const savedIds = computed(() => new Set(savedVideos.value.map((v) => v.id)))
+const savedChannelById = computed(
+  () => new Map([...(savedData.value?.channels ?? []), ...channels.value].map((c: Channel) => [c.id, c])),
+)
+const saving = ref<string | null>(null)
+const saveError = ref<{ id: string; text: string } | null>(null)
+async function toggleSaved(video: ScoredVideo) {
+  if (saving.value) return
+  saving.value = video.id
+  saveError.value = null
+  try {
+    if (savedIds.value.has(video.id)) await $fetch(`/api/saved/${video.id}`, { method: 'DELETE' })
+    else await $fetch('/api/saved', { method: 'POST', body: { id: video.id, short: video.isShort } })
+    await refreshSaved()
+  } catch (err) {
+    saveError.value = { id: video.id, text: messageOf(err) }
+  } finally {
+    saving.value = null
+  }
+}
+provide('saver', {
+  enabled: computed(() => !isDemo.value),
+  isSaved: (id: string) => savedIds.value.has(id),
+  busy: saving,
+  error: saveError,
+  toggle: toggleSaved,
+})
 
 const channels = computed<Channel[]>(() => data.value?.channels ?? [])
 const videos = computed<ScoredVideo[]>(() => data.value?.videos ?? [])
@@ -29,6 +61,7 @@ const MODE_TITLES: Record<Mode, string> = {
   following: 'Tus canales',
   discover: 'Descubrir',
   channels: 'Comparar canales',
+  saved: 'Guardados',
 }
 const MODE_LEDES: Record<Mode, string> = {
   home: 'Lo que pasó en tus canales y tus temas.',
@@ -36,6 +69,7 @@ const MODE_LEDES: Record<Mode, string> = {
   following: 'Videos que rindieron muy por encima de lo normal en su propio canal.',
   discover: 'Busca en todo YouTube y compara cada video con lo normal de su canal.',
   channels: 'Cómo le va a cada canal que sigues.',
+  saved: 'Los videos que guardaste desde la app o desde YouTube, con el score que tenían ese día.',
 }
 const view = ref<'list' | 'grid'>('list')
 // En celular las secciones se desplazan en horizontal: la activa siempre queda a la vista.
@@ -398,6 +432,9 @@ async function logIn() {
         <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
         <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
         <button type="button" :aria-pressed="mode === 'channels'" @click="mode = 'channels'">Comparar canales</button>
+        <button v-if="!isDemo" type="button" :aria-pressed="mode === 'saved'" @click="mode = 'saved'">
+          Guardados<span v-if="savedVideos.length > 0" class="count">{{ savedVideos.length }}</span>
+        </button>
       </nav>
 
       <div class="nav-action">
@@ -743,6 +780,23 @@ async function logIn() {
               </button>
             </p>
           </template>
+        </div>
+      </template>
+
+      <!-- Guardados -->
+      <template v-else-if="mode === 'saved'">
+        <VideoResults
+          v-if="savedVideos.length > 0"
+          v-model:view="view"
+          :videos="savedVideos"
+          :channels="savedChannelById"
+          :summary="countOf(savedVideos.length, 'video guardado', 'videos guardados')"
+          own-switch
+          @analyze="analyze"
+        />
+        <div v-else class="empty">
+          <p class="empty-title">Todavía no guardas ningún video</p>
+          <p>Pulsa “Guardar” en cualquier video de la app, o bajo el título de un video en YouTube con la extensión.</p>
         </div>
       </template>
 

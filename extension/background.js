@@ -91,6 +91,39 @@ async function scores(videos) {
   return { scores: found }
 }
 
+// Video que estás viendo: etiquetas, guardado y canal seguido. Se reutiliza 6 horas.
+async function videoInfo({ id, channelId }) {
+  const s = await settings()
+  if (!s.connected) throw new Error('not-connected')
+  const key = `v:${id}`
+  const stored = (await chrome.storage.local.get(key))[key]
+  if (stored && Date.now() - stored.at < CACHE_HOURS * 3_600_000) return stored.info
+  const data = await call(`/api/ext/video?id=${encodeURIComponent(id)}&channel=${encodeURIComponent(channelId ?? '')}`)
+  await addQuota(data.quotaUsed)
+  const info = { tags: data.tags, saved: data.saved, followed: data.followed }
+  await chrome.storage.local.set({ [key]: { at: Date.now(), info } })
+  return info
+}
+
+async function patchInfo(id, change) {
+  const key = `v:${id}`
+  const stored = (await chrome.storage.local.get(key))[key]
+  if (stored) await chrome.storage.local.set({ [key]: { ...stored, info: { ...stored.info, ...change } } })
+}
+
+async function save({ id, short, saved }) {
+  const data = await call('/api/ext/save', { method: 'POST', body: { id, short, saved } })
+  await patchInfo(id, { saved: data.saved })
+  return { saved: data.saved }
+}
+
+async function follow({ id, channelId }) {
+  await call('/api/ext/follow', { method: 'POST', body: { channelId } })
+  await addQuota(5)
+  await patchInfo(id, { followed: true })
+  return { followed: true }
+}
+
 async function connect({ appUrl, password }) {
   let base
   try {
@@ -103,14 +136,14 @@ async function connect({ appUrl, password }) {
   const data = await call('/api/ext/connect', { method: 'POST', body: { password }, token: '', base })
   // Cambiar de app o de modo invalida los puntajes guardados.
   const all = await chrome.storage.local.get(null)
-  await chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith('s:')))
+  await chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith('s:') || k.startsWith('v:')))
   await chrome.storage.local.set({ appUrl: base, token: data.token, connected: true, mode: data.mode })
   return { mode: data.mode }
 }
 
 async function disconnect() {
   const all = await chrome.storage.local.get(null)
-  await chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith('s:')))
+  await chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith('s:') || k.startsWith('v:')))
   await chrome.storage.local.set({ token: '', connected: false, mode: '' })
 }
 
@@ -120,6 +153,9 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     connect: () => connect(message),
     disconnect: () => disconnect(),
     status: () => call('/api/ext/status'),
+    video: () => videoInfo(message),
+    save: () => save(message),
+    follow: () => follow(message),
   }[message?.type]
   if (!run) return false
   run()

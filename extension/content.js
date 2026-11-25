@@ -88,6 +88,68 @@ function currentVideo() {
   return location.pathname === '/watch' ? videoFromHref(location.href) : null
 }
 
+const infos = new Map() // id -> { tags, saved, followed } | 'loading' | { error }
+const chipState = { tagsOpen: false, busy: '', message: '', copied: false, video: '' }
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+}
+
+async function loadInfo(video, entry) {
+  infos.set(video.id, 'loading')
+  try {
+    const reply = await chrome.runtime.sendMessage({ type: 'video', id: video.id, channelId: entry?.channelId })
+    infos.set(video.id, reply?.ok ? reply : { error: reply?.error ?? 'No se pudo leer el video.' })
+  } catch {
+    infos.delete(video.id)
+  }
+  paintChip()
+}
+
+function chipHtml(video, entry, info) {
+  const parts = []
+  if (entry === null || entry.score === null) {
+    parts.push('<p class="acx-chip-line"><span class="acx-chip-text">Este canal tiene muy pocos videos para saber qué es normal en él.</span></p>')
+  } else {
+    parts.push(
+      `<p class="acx-chip-line"><span class="acx-dot"></span><span class="acx-chip-score">${escapeHtml(scoreText(entry.score))}</span>` +
+        `<span class="acx-chip-text">${escapeHtml(compactFormat.format(entry.views))} vistas, frente a ${escapeHtml(
+          compactFormat.format(entry.baseline),
+        )} normales en este canal${entry.short ? ' para un Short' : ''}</span></p>`,
+    )
+  }
+  if (info && info !== 'loading' && !info.error) {
+    const busy = chipState.busy
+    const tags = info.tags ?? []
+    parts.push('<div class="acx-actions">')
+    parts.push(
+      `<button type="button" class="acx-button" data-act="save" aria-pressed="${info.saved}" ${busy ? 'disabled' : ''}>` +
+        `${busy === 'save' ? 'Guardando' : info.saved ? 'Guardado' : 'Guardar'}</button>`,
+    )
+    if (entry?.channelId) {
+      parts.push(
+        info.followed
+          ? '<span class="acx-state">Sigues este canal</span>'
+          : `<button type="button" class="acx-button" data-act="follow" ${busy ? 'disabled' : ''}>${busy === 'follow' ? 'Siguiendo' : 'Seguir canal'}</button>`,
+      )
+    }
+    parts.push(
+      tags.length > 0
+        ? `<button type="button" class="acx-button acx-ghost" data-act="tags" aria-expanded="${chipState.tagsOpen}">Etiquetas <span class="acx-count">${tags.length}</span></button>`
+        : '<span class="acx-state">Sin etiquetas</span>',
+    )
+    parts.push('</div>')
+    if (chipState.message) parts.push(`<p class="acx-message" role="alert">${escapeHtml(chipState.message)}</p>`)
+    if (chipState.tagsOpen && tags.length > 0) {
+      parts.push(
+        `<div class="acx-tags"><ul>${tags.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` +
+          `<button type="button" class="acx-button acx-ghost" data-act="copy">${chipState.copied ? 'Copiadas' : 'Copiar etiquetas'}</button></div>`,
+      )
+    }
+  }
+  return parts.join('')
+}
+
 function paintChip() {
   const video = currentVideo()
   const title = document.querySelector('ytd-watch-metadata #title')
@@ -97,26 +159,66 @@ function paintChip() {
     chip?.remove()
     return
   }
+  if (chipState.video !== video.id) Object.assign(chipState, { tagsOpen: false, busy: '', message: '', copied: false, video: video.id })
+  if (!infos.has(video.id)) loadInfo(video, entry)
+  const info = infos.get(video.id)
+
   if (!chip || chip.parentElement !== title) {
     chip?.remove()
     chip = document.createElement('div')
     chip.className = CHIP
+    chip.addEventListener('click', onChipClick)
     title.appendChild(chip)
   }
-  const key = `${video.id}|${entry?.score ?? 'none'}`
+  const html = chipHtml(video, entry, info)
+  const key = `${video.id}|${html}`
   if (chip.dataset.key === key) return
   chip.dataset.key = key
-  if (entry === null || entry.score === null) {
-    chip.dataset.tier = 'none'
-    chip.innerHTML = '<span class="acx-chip-text">Este canal tiene muy pocos videos para saber qué es normal en él.</span>'
-    return
+  chip.dataset.tier = entry === null || entry.score === null ? 'none' : tier(entry.score)
+  chip.innerHTML = html
+}
+
+async function onChipClick(event) {
+  const button = event.target.closest('button[data-act]')
+  const video = currentVideo()
+  if (!button || !video) return
+  const info = infos.get(video.id)
+  const entry = scores.get(video.id)
+  if (!info || info === 'loading' || info.error) return
+  const act = button.dataset.act
+
+  if (act === 'tags') {
+    chipState.tagsOpen = !chipState.tagsOpen
+    return paintChip()
   }
-  chip.dataset.tier = tier(entry.score)
-  chip.innerHTML = `<span class="acx-dot"></span><span class="acx-chip-score"></span><span class="acx-chip-text"></span>`
-  chip.querySelector('.acx-chip-score').textContent = scoreText(entry.score)
-  chip.querySelector('.acx-chip-text').textContent = `${compactFormat.format(entry.views)} vistas, frente a ${compactFormat.format(
-    entry.baseline,
-  )} normales en este canal${entry.short ? ' para un Short' : ''}`
+  if (act === 'copy') {
+    try {
+      await navigator.clipboard.writeText(info.tags.join(', '))
+      chipState.copied = true
+      setTimeout(() => ((chipState.copied = false), paintChip()), 1500)
+    } catch {
+      chipState.message = 'No se pudieron copiar. Selecciónalas y cópialas a mano.'
+    }
+    return paintChip()
+  }
+
+  chipState.busy = act
+  chipState.message = ''
+  paintChip()
+  const message =
+    act === 'save'
+      ? { type: 'save', id: video.id, short: false, saved: !info.saved }
+      : { type: 'follow', id: video.id, channelId: entry?.channelId }
+  let reply
+  try {
+    reply = await chrome.runtime.sendMessage(message)
+  } catch {
+    reply = { ok: false, error: 'La extensión se actualizó. Recarga la página.' }
+  }
+  chipState.busy = ''
+  if (reply?.ok) infos.set(video.id, { ...info, ...(act === 'save' ? { saved: reply.saved } : { followed: true }) })
+  else chipState.message = reply?.error ?? 'No se pudo completar.'
+  paintChip()
 }
 
 // Pedir puntajes
@@ -177,7 +279,10 @@ async function loadOptions() {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return
   if (!['enabled', 'minScore', 'connected', 'token', 'appUrl'].some((k) => k in changes)) return
-  if ('connected' in changes || 'token' in changes || 'appUrl' in changes) scores.clear()
+  if ('connected' in changes || 'token' in changes || 'appUrl' in changes) {
+    scores.clear()
+    infos.clear()
+  }
   loadOptions().then(scan)
 })
 
