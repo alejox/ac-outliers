@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createError } from 'h3'
 import type { ChannelSnapshot } from '~~/shared/achievements'
+import type { ChangeKind, VideoChange, VideoMark } from '~~/shared/changes'
 import type { Baseline } from '~~/shared/extension'
 import type { MomentumPoint } from '~~/shared/home'
 import type { Channel, PreviousReading, ScoredVideo, Topic, Video } from '~~/shared/outliers'
@@ -65,6 +66,10 @@ const toVideo = (r: any): Video => ({
   comments: r.comments === null ? null : Number(r.comments),
   fetchedAt: r.updated_at,
 })
+
+/** Columnas de un video sin la copia de su miniatura, que pesa y solo se usa al detectar cambios. */
+const VIDEO_COLUMNS =
+  'id, channel_id, title, thumbnail_url, published_at, duration_seconds, is_short, category_id, views, likes, comments, updated_at'
 
 export async function dbListChannels(): Promise<Channel[]> {
   const { data, error } = await db().from('channels').select('*').order('title')
@@ -170,7 +175,7 @@ export async function dbDeleteChannel(id: string): Promise<void> {
 
 /** Videos guardados de un solo canal. */
 export async function dbListChannelVideos(channelId: string): Promise<Video[]> {
-  const { data, error } = await db().from('videos').select('*').eq('channel_id', channelId)
+  const { data, error } = await db().from('videos').select(VIDEO_COLUMNS).eq('channel_id', channelId)
   check(error, 'leer los videos del canal')
   return (data ?? []).map(toVideo)
 }
@@ -181,7 +186,7 @@ export async function dbListVideos(): Promise<Video[]> {
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await db()
       .from('videos')
-      .select('*')
+      .select(VIDEO_COLUMNS)
       .order('id')
       .range(from, from + PAGE - 1)
     check(error, 'leer los videos')
@@ -440,4 +445,71 @@ export async function dbSaveVideo(video: ScoredVideo, channel: Channel | null): 
 export async function dbUnsaveVideo(videoId: string): Promise<void> {
   const { error } = await db().from('saved_videos').delete().eq('video_id', videoId)
   check(error, 'quitar el video de guardados')
+}
+
+// Historial de cambios de título y miniatura
+
+/** Título y huella de miniatura guardados de unos videos. */
+export async function dbListVideoMarks(ids: string[]): Promise<Map<string, VideoMark>> {
+  const marks = new Map<string, VideoMark>()
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await db()
+      .from('videos')
+      .select('id, title, thumb_hash, thumb_data')
+      .in('id', ids.slice(i, i + 200))
+    check(error, 'leer los títulos guardados')
+    for (const r of data ?? []) marks.set(r.id, { title: r.title, thumbHash: r.thumb_hash ?? null, thumbData: r.thumb_data ?? null })
+  }
+  return marks
+}
+
+/** Guarda la huella y la copia de la miniatura actual de los videos revisados. */
+export async function dbSaveThumbs(videos: Video[], thumbs: Map<string, { hash: string; data: string }>): Promise<void> {
+  const rows = videos
+    .filter((v) => thumbs.has(v.id))
+    .map((v) => ({
+      id: v.id,
+      channel_id: v.channelId,
+      title: v.title,
+      published_at: v.publishedAt,
+      thumb_hash: thumbs.get(v.id)!.hash,
+      thumb_data: thumbs.get(v.id)!.data,
+    }))
+  if (rows.length === 0) return
+  const { error } = await db().from('videos').upsert(rows)
+  check(error, 'guardar las miniaturas')
+}
+
+export async function dbSaveVideoChanges(changes: VideoChange[]): Promise<void> {
+  if (changes.length === 0) return
+  const { error } = await db()
+    .from('video_changes')
+    .insert(changes.map((c) => ({ video_id: c.videoId, kind: c.kind, before: c.before, after: c.after, changed_at: c.changedAt })))
+  check(error, 'guardar los cambios de los videos')
+}
+
+/** Qué videos cambiaron en los últimos días y cuándo, sin las imágenes (para marcar las filas). */
+export async function dbListRecentChanges(days = 90): Promise<Record<string, { kind: ChangeKind; at: string }[]>> {
+  const since = new Date(Date.now() - days * 86_400_000).toISOString()
+  const { data, error } = await db()
+    .from('video_changes')
+    .select('video_id, kind, changed_at')
+    .gte('changed_at', since)
+    .order('changed_at', { ascending: false })
+    .limit(2000)
+  check(error, 'leer los cambios de los videos')
+  const out: Record<string, { kind: ChangeKind; at: string }[]> = {}
+  for (const r of data ?? []) (out[r.video_id] ??= []).push({ kind: r.kind, at: r.changed_at })
+  return out
+}
+
+/** Todos los cambios de un video, del más reciente al más antiguo, con las miniaturas. */
+export async function dbListVideoChanges(videoId: string): Promise<VideoChange[]> {
+  const { data, error } = await db()
+    .from('video_changes')
+    .select('video_id, kind, before, after, changed_at')
+    .eq('video_id', videoId)
+    .order('changed_at', { ascending: false })
+  check(error, 'leer los cambios del video')
+  return (data ?? []).map((r) => ({ videoId: r.video_id, kind: r.kind, before: r.before, after: r.after, changedAt: r.changed_at }))
 }

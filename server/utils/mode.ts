@@ -1,4 +1,5 @@
 import { createError } from 'h3'
+import { detectChanges } from '~~/shared/changes'
 import type { Channel } from '~~/shared/outliers'
 
 /**
@@ -46,6 +47,17 @@ export async function syncChannel(channelId: string, fresh?: Channel): Promise<n
   const channel = fresh ?? (await fetchChannel({ id: channelId }))
   if (channel) await dbSaveChannel(channel)
   const videos = await fetchChannelVideos(channelId)
+
+  // Antes de guardar: qué títulos y miniaturas cambiaron desde la lectura anterior.
+  const [marks, thumbs] = await Promise.all([dbListVideoMarks(videos.map((v) => v.id)), readRecentThumbs(videos)])
+  const changes = detectChanges(
+    marks,
+    videos.map((v) => ({ id: v.id, title: v.title, thumbHash: thumbs.get(v.id)?.hash ?? null, thumbData: thumbs.get(v.id)?.data ?? null })),
+    new Date().toISOString(),
+  )
+
   await dbSaveChannelVideos(channelId, videos)
+  await dbSaveThumbs(videos, thumbs)
+  await dbSaveVideoChanges(changes)
   return videos.length
 }

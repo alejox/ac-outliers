@@ -92,3 +92,12 @@ export function formatChange(ratio: number) {
   const value = Math.abs(ratio * 100).toLocaleString('es', { maximumFractionDigits: 0 })
   return `${ratio < 0 ? '−' : '+'}${value} %`
 }
+
+/** "Cambió el título hace 3 días": lo que cambió de un video, para su fila. */
+export function changeLabel(changes: { kind: 'title' | 'thumbnail'; at: string }[]): string | null {
+  if (changes.length === 0) return null
+  const kinds = new Set(changes.map((c) => c.kind))
+  const what = kinds.size === 2 ? 'Cambió título y miniatura' : kinds.has('title') ? 'Cambió el título' : 'Cambió la miniatura'
+  const days = (Date.now() - new Date(changes[0]!.at).getTime()) / 86_400_000
+  return `${what} ${formatAge(days)}`
+}

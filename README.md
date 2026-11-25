@@ -70,6 +70,10 @@ Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de 
 - **Guardados**: cada video en lista tiene "Guardar"; también se guarda desde YouTube con la extensión. Se
   guarda la foto del video con su score de ese día, así que verlos no gasta cuota. Se agrupan en
   **colecciones**: cada video va en una o en ninguna, y eliminar una colección no borra sus videos.
+- **Cambios de título y miniatura**: en cada actualización la app compara el título y la miniatura de los
+  videos de tus canales con los de la vez anterior (las miniaturas, solo de videos de los últimos 60 días).
+  Un video que cambió lo dice en su fila, y "Analizar" muestra el título o la miniatura de antes y de ahora.
+  Las miniaturas se bajan de i.ytimg.com, así que no gastan cuota.
 - **Comparar canales**: una fila por canal con suscriptores, vistas normales, alcance (vistas normales
   ÷ suscriptores), subidas en 30 días, cuántos videos llegaron a 2× en 90 días y su mejor video.
 
@@ -205,7 +209,7 @@ La extensión gasta sobre todo con canales que no ha visto ese día; volver a p�
 ## Historial
 
 Cada actualización guarda una foto del día: las vistas de cada video (`video_snapshots`) y las cifras de
-cada canal (`channel_snapshots`). Con la primera se calculan las vistas por hora recientes; la segunda es
+cada canal (`channel_snapshots`). `video_changes` guarda los cambios de título y miniatura. Con la primera se calculan las vistas por hora recientes; la segunda es
 la base para fechar los logros de tus canales en Inicio. `topic_snapshots` guarda el impulso diario de cada tema.
 
 ## Migraciones automáticas
