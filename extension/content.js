@@ -7,6 +7,11 @@ const CHIP = 'acx-chip'
 const VIDEO_ID = /^[\w-]{11}$/
 
 const scores = new Map() // id -> puntaje, o null si no tiene
+const missingAt = new Map() // id -> cuándo no hubo puntaje; se reintenta después de un rato
+/** Un video sin cifras (en vivo, recién estrenado) se vuelve a pedir pasado este tiempo. */
+const RETRY_MISSING_MS = 10 * 60_000
+/** Antes de esto un video recién publicado no ha tenido tiempo de compararse con su canal. */
+const NEW_HOURS = 48
 const pending = new Set()
 let options = { enabled: true, minScore: 0, connected: false }
 let requestTimer = 0
@@ -28,7 +33,7 @@ function videoFromHref(href) {
   return shorts ? { id: shorts[1], short: true } : null
 }
 
-const numberFormat = new Intl.NumberFormat('es', { maximumFractionDigits: 0 })
+const numberFormat = new Intl.NumberFormat('es', { maximumFractionDigits: 0, useGrouping: 'always' })
 const compactFormat = new Intl.NumberFormat('es', { notation: 'compact', maximumFractionDigits: 1 })
 
 function scoreText(score) {
@@ -45,8 +50,27 @@ function tier(rawScore) {
   return 'low'
 }
 
+const ageHours = (entry) => (Date.now() - new Date(entry.publishedAt).getTime()) / 3_600_000
+
+/** Recién publicado y todavía por debajo de lo normal: es pronto para juzgarlo, no un fracaso. */
+function isNew(entry) {
+  return entry && entry.score !== null && ageHours(entry) < NEW_HOURS && entry.score < 1
+}
+
 function visible(entry) {
-  return options.enabled && options.connected && entry && entry.score !== null && entry.score >= options.minScore
+  if (!options.enabled || !options.connected || !entry || entry.score === null) return false
+  if (isNew(entry)) return options.minScore === 0
+  return entry.score >= options.minScore
+}
+
+function ageText(entry) {
+  const hours = ageHours(entry)
+  if (hours < 1) return `hace ${Math.max(1, Math.round(hours * 60))} min`
+  if (hours < 48) return `hace ${Math.round(hours)} h`
+  const days = Math.round(hours / 24)
+  if (days < 60) return `hace ${days} días`
+  const months = Math.round(days / 30)
+  return months < 24 ? `hace ${months} meses` : `hace ${Math.round(days / 365)} años`
 }
 
 // Miniaturas
@@ -69,18 +93,71 @@ function paintBadge(anchor, video) {
     badge = document.createElement('span')
     badge.className = BADGE
     badge.innerHTML = '<span class="acx-dot"></span><span class="acx-value"></span>'
+    badge.addEventListener('mouseenter', () => showCard(badge))
+    badge.addEventListener('mouseleave', hideCard)
     if (getComputedStyle(anchor).position === 'static') anchor.classList.add('acx-anchor')
     anchor.appendChild(badge)
   }
   // Solo se toca lo que cambió: cada cambio despierta al observador de la página.
-  const text = scoreText(entry.score)
+  const fresh = isNew(entry)
+  const text = fresh ? 'Nuevo' : scoreText(entry.score)
+  const level = fresh ? 'new' : tier(entry.score)
   const value = badge.querySelector('.acx-value')
-  if (badge.dataset.tier !== tier(entry.score)) badge.dataset.tier = tier(entry.score)
+  if (badge.dataset.tier !== level) badge.dataset.tier = level
   if (value.textContent !== text) value.textContent = text
-  badge.title = `${scoreText(entry.score)} lo normal del canal: ${numberFormat.format(Math.round(entry.baseline))} vistas por ${
-    entry.short ? 'Short' : 'video'
-  }`
+  if (badge.dataset.video !== video.id) badge.dataset.video = video.id
 }
+
+// Tarjeta al pasar el mouse por la insignia
+
+let card = null
+
+function cardHtml(entry) {
+  const unit = entry.short ? 'Short' : 'video'
+  const rows = [
+    ['Vistas', numberFormat.format(entry.views)],
+    [`Lo normal por ${unit}`, numberFormat.format(Math.round(entry.baseline))],
+    ['Vistas por hora', numberFormat.format(Math.round(entry.viewsPerHour))],
+    ['Publicado', ageText(entry)],
+  ]
+  const head = isNew(entry)
+    ? '<p class="acx-card-head">Recién publicado</p><p class="acx-card-note">Todavía es pronto para compararlo con su canal.</p>'
+    : `<p class="acx-card-head"><span class="acx-card-score">${escapeHtml(scoreText(entry.score))}</span> lo normal del canal</p>`
+  return (
+    head +
+    `<dl>${rows.map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join('')}</dl>`
+  )
+}
+
+function showCard(badge) {
+  const entry = scores.get(badge.dataset.video)
+  if (!entry || entry.score === null) return
+  if (!card) {
+    card = document.createElement('div')
+    card.className = 'acx-card'
+    card.setAttribute('role', 'tooltip')
+    document.body.appendChild(card)
+  }
+  card.dataset.tier = isNew(entry) ? 'new' : tier(entry.score)
+  card.innerHTML = cardHtml(entry)
+  const box = badge.getBoundingClientRect()
+  card.style.visibility = 'hidden'
+  card.hidden = false
+  const width = card.offsetWidth
+  const height = card.offsetHeight
+  const left = Math.min(box.left, window.innerWidth - width - 8)
+  const below = box.bottom + 6
+  const top = below + height > window.innerHeight - 8 ? box.top - height - 6 : below
+  card.style.left = `${Math.max(8, left)}px`
+  card.style.top = `${Math.max(8, top)}px`
+  card.style.visibility = ''
+}
+
+function hideCard() {
+  if (card) card.hidden = true
+}
+
+window.addEventListener('scroll', hideCard, { passive: true })
 
 // Página de un video
 
@@ -110,6 +187,14 @@ function chipHtml(video, entry, info) {
   const parts = []
   if (entry === null || entry.score === null) {
     parts.push('<p class="acx-chip-line"><span class="acx-chip-text">Este canal tiene muy pocos videos para saber qué es normal en él.</span></p>')
+  } else if (isNew(entry)) {
+    parts.push(
+      `<p class="acx-chip-line"><span class="acx-chip-score">Nuevo</span><span class="acx-chip-text">Publicado ${escapeHtml(
+        ageText(entry),
+      )}: todavía es pronto para compararlo. Lleva ${escapeHtml(compactFormat.format(entry.views))} vistas; lo normal en este canal es ${escapeHtml(
+        compactFormat.format(entry.baseline),
+      )}.</span></p>`,
+    )
   } else {
     parts.push(
       `<p class="acx-chip-line"><span class="acx-dot"></span><span class="acx-chip-score">${escapeHtml(scoreText(entry.score))}</span>` +
@@ -174,7 +259,7 @@ function paintChip() {
   const key = `${video.id}|${html}`
   if (chip.dataset.key === key) return
   chip.dataset.key = key
-  chip.dataset.tier = entry === null || entry.score === null ? 'none' : tier(entry.score)
+  chip.dataset.tier = entry === null || entry.score === null ? 'none' : isNew(entry) ? 'new' : tier(entry.score)
   chip.innerHTML = html
 }
 
@@ -224,8 +309,10 @@ async function onChipClick(event) {
 // Pedir puntajes
 
 function request(videos) {
+  const now = Date.now()
   for (const v of videos) {
-    if (!scores.has(v.id)) pending.add(JSON.stringify(v))
+    const stale = scores.get(v.id) === null && now - (missingAt.get(v.id) ?? 0) > RETRY_MISSING_MS
+    if (!scores.has(v.id) || stale) pending.add(JSON.stringify(v))
   }
   if (pending.size === 0) return
   clearTimeout(requestTimer)
@@ -243,7 +330,12 @@ async function flush() {
     return // La extensión se actualizó o se recargó: esta pestaña ya no puede hablar con ella.
   }
   if (!reply?.ok) return
-  for (const v of batch) scores.set(v.id, reply.scores[v.id] ?? null)
+  for (const v of batch) {
+    const entry = reply.scores[v.id] ?? null
+    scores.set(v.id, entry)
+    if (entry === null) missingAt.set(v.id, Date.now())
+    else missingAt.delete(v.id)
+  }
   paintAll()
 }
 

@@ -4,6 +4,7 @@ import {
   demoScores,
   isBaselineFresh,
   MAX_EXT_VIDEOS,
+  paceSince,
   parseVideoRequests,
   scoreAgainst,
 } from '../shared/extension'
@@ -73,5 +74,12 @@ describe('demoScores', () => {
     const [b] = demoScores([{ id: 'dQw4w9WgXcQ', short: false }])
     expect(a).toEqual(b)
     expect(a!.score).toBeGreaterThan(0)
+  })
+})
+
+describe('paceSince', () => {
+  it('divide por las horas desde la publicación, mínimo una', () => {
+    expect(paceSince(240, daysAgo(1), NOW)).toBe(10)
+    expect(paceSince(50, new Date(NOW.getTime() - 10 * 60_000).toISOString(), NOW)).toBe(50)
   })
 })

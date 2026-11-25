@@ -2,6 +2,7 @@ import {
   baselineKey,
   channelBaseline,
   isBaselineFresh,
+  paceSince,
   scoreAgainst,
   type Baseline,
   type ExtScore,
@@ -79,6 +80,8 @@ export async function scoreForExtension(requests: VideoRequest[]): Promise<{ sco
     channelId: video.channelId,
     short: video.isShort,
     views: video.views,
+    publishedAt: video.publishedAt,
+    viewsPerHour: paceSince(video.views, video.publishedAt),
     baseline,
     score: scoreAgainst(video.views, baseline),
   }))

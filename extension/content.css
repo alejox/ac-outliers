@@ -159,3 +159,76 @@
 .acx-tags .acx-button {
   justify-self: start;
 }
+
+/* Recién publicado: sin juicio todavía, en gris */
+.acx-badge[data-tier='new'] {
+  color: #9c9c9d;
+  font-weight: 500;
+}
+.acx-chip[data-tier='new'] .acx-chip-score {
+  color: #9c9c9d;
+}
+
+/* Tarjeta al pasar el mouse por la insignia */
+.acx-card {
+  position: fixed;
+  z-index: 2147483000;
+  width: 236px;
+  padding: 12px;
+  border: 1px solid #363739;
+  border-radius: 10px;
+  background: #111214;
+  color: #e6e6e6;
+  font: 400 12px/1.4 Inter, Roboto, Arial, sans-serif;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.acx-card[hidden] {
+  display: none;
+}
+.acx-card p {
+  margin: 0;
+}
+.acx-card-head {
+  color: #9c9c9d;
+  font-size: 13px;
+}
+.acx-card-score {
+  margin-right: 4px;
+  color: #e6e6e6;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.acx-card[data-tier='top'] .acx-card-score {
+  color: #ff6363;
+}
+.acx-card[data-tier='new'] .acx-card-head {
+  color: #e6e6e6;
+  font-weight: 600;
+}
+.acx-card-note {
+  margin-top: 2px !important;
+  color: #9c9c9d;
+}
+.acx-card dl {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid #363739;
+}
+.acx-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.acx-card dt {
+  color: #9c9c9d;
+}
+.acx-card dd {
+  margin: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
