@@ -27,9 +27,11 @@ export default defineEventHandler(async (event) => {
     language: params.lang === 'es' ? 'es' : '',
     order: params.order === 'viewCount' ? 'viewCount' : 'relevance',
   })
-  if (ids.length === 0) return { channels: [], videos: [], quotaUsed: 100 }
+  if (ids.length === 0) return { channels: [], videos: [], context: [], quotaUsed: 100 }
 
   const found = await fetchVideosByIds(ids)
-  const scored = await scoreFoundVideos(found)
-  return { ...scored, quotaUsed: scored.quotaUsed + 101 }
+  const { context: _raw, scoredContext, ...scored } = await scoreFoundVideos(found)
+  // context: los videos largos recientes de cada canal encontrado, para el panel "Analizar".
+  const context = scoredContext.map((v) => ({ ...v, thumbnailUrl: null }))
+  return { ...scored, context, quotaUsed: scored.quotaUsed + 101 }
 })

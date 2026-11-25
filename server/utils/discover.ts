@@ -9,6 +9,12 @@ async function inBatches<T>(items: T[], size: number, run: (item: T) => Promise<
   }
 }
 
+function groupByChannel(videos: Video[]): Record<string, Video[]> {
+  const out: Record<string, Video[]> = {}
+  for (const v of videos) (out[v.channelId] ??= []).push(v)
+  return out
+}
+
 /**
  * Puntúa videos encontrados fuera de tus canales contra lo normal de su propio canal.
  * No guarda nada. Solo considera videos largos. Cuesta unas 2 unidades por canal distinto.
@@ -29,9 +35,14 @@ export async function scoreFoundVideos(found: Video[]) {
   for (const video of results) recent.set(video.id, video)
 
   const followedIds = new Set(followed.map((c) => c.id))
+  const scored = scoreVideos([...recent.values()])
   return {
     channels: channels.map((c) => ({ ...c, followed: followedIds.has(c.id) })),
-    videos: scoreVideos([...recent.values()]).filter((v) => resultIds.has(v.id)),
+    videos: scored.filter((v) => resultIds.has(v.id)),
+    // Los videos largos recientes de cada canal, ya leídos para puntuar: con ellos se analiza un
+    // resultado frente a su canal sin gastar más cuota. Sin miniaturas, que aquí no se muestran.
+    context: groupByChannel([...recent.values()].map((v) => ({ ...v, thumbnailUrl: null }))),
+    scoredContext: scored,
     quotaUsed: 1 + channelIds.length * 2,
   }
 }

@@ -15,6 +15,7 @@ const props = defineProps<{
 
 /** 'list' muestra todas las cifras; 'grid' deja solo las miniaturas para estudiar el empaque. */
 const view = defineModel<'list' | 'grid'>('view', { default: 'list' })
+defineEmits<{ analyze: [video: ScoredVideo] }>()
 
 const shown = ref(PAGE_SIZE)
 watch(
@@ -35,7 +36,7 @@ const visible = computed(() => props.videos.slice(0, shown.value))
   </div>
 
   <ol v-if="view === 'list'" class="videos">
-    <VideoRow v-for="v in visible" :key="v.id" :video="v" :channel="channels.get(v.channelId)">
+    <VideoRow v-for="v in visible" :key="v.id" :video="v" :channel="channels.get(v.channelId)" @analyze="$emit('analyze', $event)">
       <template v-if="$slots.action" #default>
         <slot name="action" :video="v" />
       </template>

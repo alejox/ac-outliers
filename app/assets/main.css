@@ -501,6 +501,44 @@ button:disabled {
   color: var(--white);
 }
 
+/* "Es mi canal": un icono entre el nombre y la equis; marcado, la silueta va rellena y en blanco */
+.chip-mine {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  border-left: 0 !important;
+  border-radius: 0;
+  color: var(--smoke);
+}
+
+.chip-mine:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.chip-mine:hover:not([aria-disabled='true']) {
+  color: var(--white);
+}
+
+.chip-mine[aria-pressed='true'] {
+  color: var(--white);
+}
+
+.chip-mine[aria-disabled='true'] {
+  cursor: default;
+}
+
+/* Insignia: relleno grafito, texto blanco */
+.badge {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--graphite);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
 .add {
   display: flex;
   flex: 0 1 352px;
@@ -614,6 +652,29 @@ input[type='search']::-webkit-search-cancel-button {
 .button-small {
   height: 28px;
   padding: 0 8px;
+}
+
+.button-small svg {
+  flex: none;
+  margin-right: 6px;
+}
+
+/* Acción secundaria de cada ficha: solo borde, para no competir con "Seguir canal" */
+.button-outline {
+  background: transparent;
+  color: var(--ash);
+}
+
+.button-outline:hover:not(:disabled) {
+  color: var(--white);
+}
+
+/* No disponible (demo): se ve como deshabilitado pero conserva su aviso al pasar el puntero */
+.button.is-unavailable,
+.button.is-unavailable:hover {
+  background: transparent;
+  color: var(--smoke);
+  cursor: default;
 }
 
 .notice {
@@ -1416,7 +1477,9 @@ input[type='search']::-webkit-search-cancel-button {
 
 /* --tone: cifra y punto. --bar: línea de la regla, siempre neutra. Solo 10× o más lleva el acento. */
 .video,
-.tile {
+.tile,
+.drawer-body,
+.suggestion-best {
   --tone: var(--ash);
   --bar: var(--ash);
 }
@@ -1580,6 +1643,7 @@ input[type='search']::-webkit-search-cancel-button {
 .video-action {
   display: flex;
   align-items: flex-start;
+  gap: 8px;
 }
 
 .video-action .followed {
@@ -1725,9 +1789,553 @@ input[type='search']::-webkit-search-cancel-button {
   line-height: 20px;
 }
 
+
+/* Línea sobre la ficha en Inicio: quién tuvo el éxito y cuándo */
+.video-lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.video-lead-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-lead strong {
+  color: var(--white);
+  font-weight: 500;
+}
+
+.video-lead-age {
+  flex: none;
+  color: var(--smoke);
+}
+
+/* Inicio: bloques apilados, cada uno con su título pequeño y su línea de apoyo */
+
+.feed-block + .feed-block {
+  margin-top: 56px;
+}
+
+.feed-error {
+  margin-bottom: 24px;
+}
+
+.feed-hint {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.link-inline {
+  height: auto;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 400;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+/* Impulso de tus temas: la misma tabla que Comparar canales, con una línea de 14 días */
+
+.momentum-wrap {
+  margin-top: 12px;
+}
+
+.momentum {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.momentum th,
+.momentum td {
+  height: 56px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.momentum tr > :first-child {
+  padding-left: 16px;
+}
+
+.momentum tr > :last-child {
+  padding-right: 16px;
+}
+
+.momentum tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.momentum thead th {
+  height: 40px;
+  color: var(--ash);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.momentum .m-value,
+.momentum .m-change {
+  width: 136px;
+  text-align: right;
+}
+
+.momentum .m-spark {
+  width: 208px;
+  text-align: right;
+}
+
+.momentum tbody .m-value {
+  color: var(--white);
+}
+
+.m-topic {
+  overflow: hidden;
+}
+
+.m-name,
+.m-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.momentum tbody .m-name {
+  font-weight: 500;
+}
+
+.m-sub {
+  color: var(--ash);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+/* Sube en blanco, baja en gris: el sistema no tiene verde ni rojo */
+.m-change .is-up {
+  color: var(--white);
+}
+
+.m-change .is-down {
+  color: var(--ash);
+}
+
+.m-days {
+  display: block;
+  color: var(--smoke);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.momentum .m-wait {
+  color: var(--smoke);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: right;
+  white-space: normal;
+}
+
+.sparkline {
+  display: inline-block;
+  vertical-align: middle;
+  color: var(--ash);
+}
+
+.sparkline.is-rising {
+  color: var(--white);
+}
+
+/* Competidores sugeridos: fichas en rejilla con la acción arriba a la derecha */
+
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.suggestion-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.avatar-lg {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+}
+
+.suggestion-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-subs {
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.suggestion-head .followed,
+.suggestion-head .button {
+  flex: none;
+}
+
+.suggestion-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.suggestion-best {
+  color: var(--tone);
+  font-weight: 600;
+}
+
+/* Tus logros: tres columnas de tarjetas; lo logrado en blanco con su fecha, lo pendiente apagado */
+
+.trophy-group + .trophy-group {
+  margin-top: 24px;
+}
+
+.trophy-channel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.trophy-column {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.trophy-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.trophy-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.trophy {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 0;
+  color: var(--smoke);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.trophy.is-done {
+  color: var(--white);
+}
+
+.trophy-mark {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.trophy.is-done .trophy-mark {
+  border-color: rgb(255 255 255 / 0.25);
+  background: var(--graphite);
+}
+
+.trophy-mark svg {
+  width: 10px;
+  height: 10px;
+}
+
+.trophy-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trophy-video {
+  overflow: hidden;
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trophy-video:hover {
+  color: var(--white);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.trophy-date {
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.trophy-progress {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* Barra de avance: pista del color del borde y relleno blanco, 2px */
+.meter {
+  position: relative;
+  display: block;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--border);
+}
+
+.meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--white);
+}
+
+.trophy-left {
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trophy-note {
+  margin-top: 12px;
+}
+
+.trophy-empty {
+  color: var(--smoke);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* Analizar: panel lateral en escritorio, pantalla completa en celular */
+
+.has-drawer {
+  overflow: hidden;
+}
+
+.drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(512px, 100vw);
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line-strong);
+  background: var(--ink);
+  color: var(--white);
+}
+
+.drawer::backdrop {
+  background: rgb(4 5 6 / 0.72);
+}
+
+.drawer-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.drawer-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 56px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-kicker {
+  color: var(--ash);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.drawer-body {
+  --thumb: 128px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  overscroll-behavior: contain;
+}
+
+.analysis-head {
+  display: grid;
+  grid-template-columns: var(--thumb) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.analysis-title h2 {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.analysis-title h2 a {
+  text-decoration: none;
+}
+
+.analysis-title h2 a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.analysis-score {
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.analysis-note {
+  margin-top: 24px;
+  color: var(--ash);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.analysis-empty {
+  margin-top: 24px;
+}
+
+.findings {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.finding {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.finding-label {
+  color: var(--ash);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.finding-text {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  text-wrap: pretty;
+}
+
+.finding-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 8px;
+}
+
+.finding-figures dt {
+  color: var(--smoke);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.finding-figures dd {
+  color: var(--white);
+  font-size: 13px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 960px) {
   .videos {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .suggestions,
+  .trophy-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trophy-column:last-child {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tiles {
@@ -2269,5 +2877,143 @@ input[type='search']::-webkit-search-cancel-button {
 
   .empty {
     padding: 32px 16px;
+  }
+
+  .chip-mine {
+    width: 36px;
+  }
+
+  /* En celular la frase del éxito no se recorta: baja a una segunda línea */
+  .video-lead {
+    align-items: flex-start;
+  }
+
+  .video-lead .avatar {
+    margin-top: -2px;
+  }
+
+  .video-lead-text {
+    white-space: normal;
+  }
+
+  .feed-block + .feed-block {
+    margin-top: 48px;
+  }
+
+  /* Impulso: cada tema una ficha, con sus cifras debajo del nombre */
+  .momentum-wrap {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .momentum,
+  .momentum tbody {
+    display: block;
+  }
+
+  .momentum thead {
+    display: none;
+  }
+
+  .momentum tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .momentum tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .momentum tbody th,
+  .momentum tbody td,
+  .momentum tbody tr > :first-child,
+  .momentum tbody tr > :last-child {
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .momentum tbody .m-topic,
+  .momentum tbody .m-spark,
+  .momentum tbody .m-wait {
+    grid-column: 1 / -1;
+  }
+
+  .momentum tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--ash);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .momentum tbody .m-value,
+  .momentum tbody .m-change,
+  .momentum tbody .m-spark,
+  .momentum tbody .m-wait {
+    text-align: left;
+  }
+
+  .suggestions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .suggestion {
+    padding: 12px;
+  }
+
+  .trophy-grid,
+  .trophy-column:last-child {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .trophy-column {
+    gap: 8px;
+  }
+
+  .trophy-card {
+    padding: 12px;
+  }
+
+  .drawer {
+    width: 100vw;
+    border-left: 0;
+  }
+
+  .drawer-bar {
+    height: 52px;
+    padding: 0 16px;
+  }
+
+  .drawer-bar .button {
+    height: 36px;
+    padding: 0 12px;
+  }
+
+  .drawer-body {
+    --thumb: 112px;
+    padding: 16px;
+  }
+
+  .analysis-head {
+    gap: 12px;
+  }
+
+  .analysis-title .byline {
+    display: grid;
+  }
+
+  .analysis-score {
+    margin-top: 12px;
   }
 }

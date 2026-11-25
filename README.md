@@ -29,7 +29,7 @@ Abre http://localhost:3000.
 ### 2. Base de datos en Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com/).
-2. En **SQL Editor**, pega y ejecuta el archivo de `supabase/migrations/`. Si configuras las
+2. En **SQL Editor**, pega y ejecuta, en orden, los archivos de `supabase/migrations/`. Si configuras las
    [migraciones automáticas](#migraciones-automáticas), este paso lo hace GitHub por ti.
 3. En **Project Settings > API**, copia la URL del proyecto y la clave secreta (`sb_secret_...` o `service_role`).
 
@@ -47,7 +47,9 @@ Las tres claves se usan solo en el servidor; nunca llegan al navegador.
 
 Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de vidIQ:
 
-- **Tendencias** (la pantalla de inicio): sigues hasta 8 temas, con palabra clave, categoría o ambas, y la
+- **Inicio** (la pantalla de entrada): lo que pasó en tus canales y tus temas, en cuatro bloques que solo
+  aparecen si tienen datos (ver [Inicio](#inicio)).
+- **Tendencias**: sigues hasta 8 temas, con palabra clave, categoría o ambas, y la
   app guarda los outliers de cada uno entre lo publicado en los últimos 30 días. Se refrescan una vez al
   día, así que abrir la pestaña no gasta cuota. Sin temas, muestra lo que más rápido sube en tus canales.
 - **Tus canales**: ranking de los videos de los canales que sigues. Filtra por formato, fecha, score,
@@ -59,6 +61,10 @@ Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de 
   resultados en español y puede traer los más relevantes o los más vistos. Los puntúa contra lo normal
   de su canal y te deja seguir el canal desde el resultado. No se guardan: repetir una búsqueda vuelve
   a gastar cuota.
+- **Es mi canal**: en "Tus canales", el icono de persona de cada canal lo marca como tuyo (puedes marcar
+  varios). Tus canales llevan la insignia "Tuyo" y activan "Tus logros" en Inicio.
+- **Analizar**: cada video en lista tiene el botón "Analizar", que abre un panel con por qué destaca frente
+  a los demás videos guardados de su canal en el mismo formato (ver [Analizar](#analizar)).
 - **Comparar canales**: una fila por canal con suscriptores, vistas normales, alcance (vistas normales
   ÷ suscriptores), subidas en 30 días, cuántos videos llegaron a 2× en 90 días y su mejor video.
 
@@ -72,6 +78,58 @@ Tomando como referencia las herramientas Outliers, Most Viewed y Competitors de 
 
 Las vistas por hora recientes aparecen a partir del segundo día de datos de cada video; por eso conviene
 dejar activa la actualización diaria.
+
+## Inicio
+
+Lee solo lo guardado: abrirlo no gasta cuota. Los bloques van en este orden y se omiten si no tienen datos.
+
+1. **Éxitos recientes**: videos de tus canales publicados en los últimos 14 días con score de 2× o más,
+   del más nuevo al más antiguo (máximo 6).
+2. **Impulso de tus temas**: una fila por tema con su impulso de hoy, el cambio frente a 7 días antes y una
+   línea de los últimos 14 días. Con menos de dos días de datos solo se ve la cifra actual.
+3. **Competidores sugeridos**: canales que aparecen en los resultados de tus temas y que no sigues, ordenados
+   por cuántos videos largos de 2× o más tienen ahí y luego por su mejor score (máximo 8). Si marcaste un
+   canal como tuyo, van primero los que tienen entre 0,2× y 5× los suscriptores de tu canal más grande.
+4. **Tus logros**: uno por cada canal tuyo (ver abajo).
+
+### Impulso de un tema
+
+**Impulso** = suma de las vistas por hora de los videos largos del tema con score de 2× o más, entre los
+resultados guardados en cada actualización. Las vistas por hora son las del momento de la búsqueda
+(vistas ÷ horas desde la publicación). Mide cuánta atención están atrayendo ahora los outliers del tema:
+sube si aparecen más outliers o si los que hay van más rápido.
+
+Cada vez que un tema se refresca se guarda una foto del día en `topic_snapshots` (impulso, outliers y total
+de videos; la última actualización del día reemplaza a la anterior). El cambio compara el último día con el
+de 7 días antes; si todavía no hay tantos días, con el más antiguo, y lo dice ("en 2 días"). La lógica está
+en `shared/home.ts`.
+
+### Tus logros
+
+Calculados en `shared/achievements.ts`:
+
+- **Suscriptores**: 100, 500, 1 mil, 5 mil, 10 mil, 50 mil, 100 mil, 500 mil y 1 millón.
+- **Vistas del canal**: 1 mil, 10 mil, 100 mil, 1 millón y 10 millones.
+- **Videos**: primer video largo a 2×, 5× y 10×; récord de score; video más visto; primer video con
+  1 mil, 10 mil y 100 mil vistas.
+- **Constancia**: semanas seguidas (de lunes a domingo, UTC) con al menos una subida, y videos publicados.
+
+La fecha de un hito de suscriptores o vistas es la de la primera foto diaria (`channel_snapshots`) en que la
+cifra lo superó. Si ya lo superaba en la primera foto guardada, se lee "Ya alcanzado", sin fecha. La siguiente
+meta de cada escalera muestra cuánto falta.
+
+Límites: los logros de videos salen de los videos guardados, que son los últimos 50 largos y 50 Shorts de cada
+canal; un video más antiguo no cuenta, así que "primer video a 2×" significa el primero entre esos. Las fechas
+de suscriptores y vistas solo existen desde que la app empezó a guardar fotos del canal.
+
+## Analizar
+
+El panel compara el video con los demás videos guardados del mismo canal y formato, sin IA
+(`shared/analysis.ts`): vistas frente a lo normal, vistas por hora frente a la mediana del canal, duración,
+día y hora de publicación frente al día en que más publica el canal, largo del título, palabras que comparte
+con los otros outliers (2× o más) del canal y la interacción si los likes son públicos. Con menos de 5 videos
+comparables no saca conclusiones. No gasta cuota: para Descubrir usa los videos que la búsqueda ya leyó, y para
+Tendencias los que se guardaron con el tema (columna `topics.context`).
 
 ### Lo que no hace
 
@@ -106,7 +164,7 @@ Con la cuota gratuita alcanzan unas 60 búsquedas al día. Ocho temas gastan una
 
 Cada actualización guarda una foto del día: las vistas de cada video (`video_snapshots`) y las cifras de
 cada canal (`channel_snapshots`). Con la primera se calculan las vistas por hora recientes; la segunda es
-la base para las gráficas de crecimiento de suscriptores, que la interfaz todavía no muestra.
+la base para fechar los logros de tus canales en Inicio. `topic_snapshots` guarda el impulso diario de cada tema.
 
 ## Migraciones automáticas
 
@@ -149,7 +207,7 @@ npm test
 app/                 Interfaz (Vue)
 server/api/          Rutas: outliers, canales, búsqueda, actualización
 server/utils/        Cliente de YouTube, Supabase, datos demo
-shared/              Score, filtros, categorías y resumen por canal (lógica pura)
+shared/              Score, filtros, categorías, resumen por canal, Inicio, logros y análisis (lógica pura)
 supabase/migrations  Cambios de la base de datos, en orden
 tests/               Tests del cálculo
 ```

@@ -10,6 +10,8 @@ export interface Channel {
   viewCount: number | null
   videoCount: number | null
   lastSyncedAt: string | null
+  /** Lo marcaste como tuyo: Inicio muestra sus logros y busca competidores de su tamaño. */
+  isMine: boolean
 }
 
 export interface Video {

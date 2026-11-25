@@ -1,4 +1,6 @@
-import type { Channel, Video } from '~~/shared/outliers'
+import type { ChannelSnapshot } from '~~/shared/achievements'
+import { topicMomentum, type MomentumPoint } from '~~/shared/home'
+import { scoreVideos, type Channel, type ScoredVideo, type Topic, type Video } from '~~/shared/outliers'
 
 // Datos de ejemplo para probar la app sin claves. Los canales son inventados.
 
@@ -58,6 +60,8 @@ export function demoData(now: Date = new Date()): { channels: Channel[]; videos:
       viewCount: c.typical * 400,
       videoCount: 180,
       lastSyncedAt: now.toISOString(),
+      // En la demo, el primer canal es "el tuyo": así Inicio muestra sus logros.
+      isMine: ci === 0,
     })
 
     const make = (index: number, isShort: boolean) => {
@@ -87,4 +91,171 @@ export function demoData(now: Date = new Date()): { channels: Channel[]; videos:
   })
 
   return { channels, videos }
+}
+
+const DAY = 86_400_000
+const day = (now: Date, daysAgo: number) => new Date(now.getTime() - daysAgo * DAY).toISOString().slice(0, 10)
+
+/** Fotos semanales del canal tuyo de la demo durante un año, para fechar sus hitos. */
+export function demoHistory(now: Date = new Date()): Record<string, ChannelSnapshot[]> {
+  const { channels } = demoData(now)
+  const mine = channels.find((c) => c.isMine)!
+  const weeks = 52
+  const grow = (from: number, to: number, k: number) => Math.round(to * (from / to) ** (k / weeks))
+  const history: ChannelSnapshot[] = []
+  for (let k = weeks; k >= 0; k--) {
+    history.push({
+      date: day(now, k * 7),
+      subscriberCount: grow(3_100, mine.subscriberCount!, k),
+      viewCount: grow(410_000, mine.viewCount!, k),
+    })
+  }
+  return { [mine.id]: history }
+}
+
+// Temas de la demo: resultados guardados con canales seguidos y canales que no sigues.
+
+const EXTRA_CHANNELS = [
+  { title: 'Overlay Lab', handle: '@overlaylab', subs: 9_800, typical: 2_100, category: '26' },
+  { title: 'Estudio Nébula', handle: '@estudionebula', subs: 36_500, typical: 7_200, category: '28' },
+  { title: 'Directo al Grano', handle: '@directoalgrano', subs: 64_000, typical: 11_000, category: '28' },
+  { title: 'Clip y Corte', handle: '@clipycorte', subs: 1_240_000, typical: 160_000, category: '24' },
+  { title: 'Mesa de Mezcla', handle: '@mesademezcla', subs: 21_700, typical: 4_000, category: '28' },
+]
+
+interface DemoTopic {
+  query: string
+  titles: string[]
+  /** Canales que sigues (índice en CHANNELS) cuyos videos de 30 días entran en el tema. */
+  followed: number[]
+  /** Canales que no sigues (índice en EXTRA_CHANNELS) y cuánto rindieron sus tres videos del tema. */
+  extra: [number, number[]][]
+  /** Forma de los últimos 14 días: el impulso de hace 13 días respecto al de hoy, y el de hace 7. */
+  shape: [number, number]
+}
+
+const DEMO_TOPICS: DemoTopic[] = [
+  {
+    query: 'plugins de OBS',
+    titles: [
+      'El plugin de OBS que cambió mis directos',
+      'Probé 5 plugins de OBS gratis',
+      'Plugins de OBS que todo streamer necesita',
+      'Cómo instalar plugins en OBS sin romper nada',
+      'Este plugin de OBS reemplaza a StreamFX',
+      'Mi plugin de OBS favorito de 2026',
+    ],
+    followed: [0, 2],
+    extra: [[0, [6.4, 2.6, 1.1]], [1, [3.1, 0.9, 1.4]], [2, [2.2, 1.0, 0.8]]],
+    shape: [0.55, 0.74],
+  },
+  {
+    query: 'edición en DaVinci',
+    titles: [
+      'Edita el doble de rápido en DaVinci Resolve',
+      'DaVinci Resolve: el atajo que nadie usa',
+      'Mi flujo de edición en DaVinci Resolve',
+      'Corrección de color en DaVinci en 10 minutos',
+      'Dejé Premiere por DaVinci Resolve',
+      'Edición en DaVinci para principiantes',
+    ],
+    followed: [1],
+    extra: [[3, [4.8, 1.3, 0.7]], [4, [2.9, 2.1, 1.0]], [1, [1.6, 0.8, 1.2]]],
+    shape: [1.3, 1.14],
+  },
+]
+
+export interface DemoTopicData extends Topic {
+  results: { channels: Channel[]; videos: ScoredVideo[] }
+  /** Videos largos de cada canal del tema, para analizar un resultado. */
+  context: Record<string, ScoredVideo[]>
+  momentum: MomentumPoint[]
+}
+
+/** Dos temas con resultados y 14 días de impulso. Usa su propia semilla: no altera los canales de la demo. */
+export function demoTopics(now: Date = new Date()): DemoTopicData[] {
+  const rand = seeded(20261124)
+  const normal = () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand())
+  const base = demoData(now)
+  const followedScored = scoreVideos(base.videos, now)
+
+  // Canales que no sigues: unos 20 videos largos de los últimos meses más los de cada tema.
+  const extraChannels: Channel[] = EXTRA_CHANNELS.map((c, i) => ({
+    id: `demo-extra-${i + 1}`,
+    title: c.title,
+    handle: c.handle,
+    thumbnailUrl: null,
+    subscriberCount: c.subs,
+    viewCount: c.typical * 300,
+    videoCount: 140,
+    lastSyncedAt: null,
+    isMine: false,
+  }))
+  const extraVideos = new Map<string, Video[]>(extraChannels.map((c) => [c.id, []]))
+  const makeVideo = (ci: number, title: string, ageDays: number, breakout: number, id: string) => {
+    const c = EXTRA_CHANNELS[ci]!
+    const ramp = Math.min(1, 0.25 + ageDays / 6)
+    const views = Math.round(c.typical * Math.exp(normal() * 0.3) * breakout * ramp)
+    const video: Video = {
+      id,
+      channelId: extraChannels[ci]!.id,
+      title,
+      thumbnailUrl: null,
+      publishedAt: new Date(now.getTime() - ageDays * DAY).toISOString(),
+      durationSeconds: 360 + Math.floor(rand() * 1200),
+      isShort: false,
+      categoryId: c.category,
+      views,
+      likes: Math.round(views * (0.03 + rand() * 0.03)),
+      comments: Math.round(views * (0.002 + rand() * 0.004)),
+    }
+    extraVideos.get(video.channelId)!.push(video)
+    return video
+  }
+  EXTRA_CHANNELS.forEach((_, ci) => {
+    for (let i = 0; i < 20; i++) {
+      const title = FORMATS[Math.floor(rand() * FORMATS.length)]!.replace('{t}', TOPICS[Math.floor(rand() * TOPICS.length)]!)
+      makeVideo(ci, title.charAt(0).toUpperCase() + title.slice(1), 32 + rand() * 230, 1, `demo-extra-${ci + 1}-v${i}`)
+    }
+  })
+  const resultIds = DEMO_TOPICS.map((t, ti) =>
+    t.extra.flatMap(([ci, breakouts], k) =>
+      breakouts.map((b, j) => makeVideo(ci, t.titles[(k * 2 + j) % t.titles.length]!, 2 + rand() * 26, b, `demo-tema-${ti + 1}-${ci}-${j}`).id),
+    ),
+  )
+  const extraScored = scoreVideos([...extraVideos.values()].flat(), now)
+
+  return DEMO_TOPICS.map((t, ti) => {
+    const ids = new Set(resultIds[ti])
+    const fromFollowed = followedScored.filter(
+      (v) => !v.isShort && v.ageDays <= 30 && t.followed.some((i) => v.channelId === `demo-canal-${i + 1}`),
+    )
+    const videos = [...fromFollowed, ...extraScored.filter((v) => ids.has(v.id))]
+    const channelIds = new Set(videos.map((v) => v.channelId))
+    const channels = [...base.channels, ...extraChannels].filter((c) => channelIds.has(c.id))
+    const context: Record<string, ScoredVideo[]> = {}
+    for (const v of extraScored) if (channelIds.has(v.channelId)) (context[v.channelId] ??= []).push({ ...v, thumbnailUrl: null })
+
+    // Impulso: el de hoy sale de los resultados; los días anteriores siguen la forma del tema.
+    const today = topicMomentum(videos)
+    const [start, mid] = t.shape
+    const momentum: MomentumPoint[] = []
+    for (let k = 13; k >= 0; k--) {
+      const f = k >= 7 ? start + ((mid - start) * (13 - k)) / 6 : mid + ((1 - mid) * (7 - k)) / 7
+      const wobble = k === 0 || k === 7 ? 1 : 1 + (rand() - 0.5) * 0.08
+      momentum.push({ date: day(now, k), momentum: today.momentum * f * wobble, outliers: today.outliers, videos: today.videos })
+    }
+
+    return {
+      id: `demo-tema-${ti + 1}`,
+      query: t.query,
+      categoryId: '',
+      language: 'es',
+      days: 30,
+      fetchedAt: new Date(now.getTime() - 3 * 3_600_000).toISOString(),
+      results: { channels, videos },
+      context,
+      momentum,
+    }
+  })
 }

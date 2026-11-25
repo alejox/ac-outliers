@@ -2,10 +2,15 @@
 import type { Channel, ScoredVideo } from '~~/shared/outliers'
 
 defineProps<{ video: ScoredVideo; channel?: Channel }>()
+defineEmits<{ analyze: [video: ScoredVideo] }>()
 </script>
 
 <template>
-  <li class="video" :class="[`tier-${scoreTier(video.score)}`, { 'has-action': $slots.default }]">
+  <li class="video has-action" :class="`tier-${scoreTier(video.score)}`">
+    <p v-if="$slots.lead" class="video-lead">
+      <slot name="lead" />
+    </p>
+
     <div class="video-head">
       <a class="thumb" :href="videoUrl(video)" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">
         <img v-if="video.thumbnailUrl" :src="video.thumbnailUrl" alt="" loading="lazy" />
@@ -18,8 +23,11 @@ defineProps<{ video: ScoredVideo; channel?: Channel }>()
         <h3>
           <a :href="videoUrl(video)" target="_blank" rel="noopener">{{ video.title }}</a>
         </h3>
-        <div v-if="$slots.default" class="video-action">
+        <div class="video-action">
           <slot />
+          <button class="button button-small button-outline" type="button" @click="$emit('analyze', video)">
+            Analizar<span class="sr-only"> “{{ video.title }}”</span>
+          </button>
         </div>
         <p class="byline">
           <span>{{ channel?.title }}</span>
@@ -33,16 +41,7 @@ defineProps<{ video: ScoredVideo; channel?: Channel }>()
     <div class="score">
       <p v-if="video.score !== null" class="score-value">{{ formatScore(video.score) }}</p>
       <p v-else class="score-value score-none" aria-hidden="true">–</p>
-      <div
-        v-if="video.score !== null"
-        class="strip"
-        role="img"
-        :aria-label="`${formatScore(video.score)} de lo normal en este canal`"
-      >
-        <span class="strip-fill" :style="stripFill(video.score)" />
-        <span class="strip-normal" :style="{ left: `${NORMAL_AT}%` }" title="Lo normal en este canal" />
-        <span class="strip-dot" :style="{ left: `${stripPosition(video.score)}%` }" />
-      </div>
+      <ScoreStrip v-if="video.score !== null" :score="video.score" />
       <p v-else class="score-missing">Pocos videos para comparar</p>
     </div>
 

@@ -4,13 +4,16 @@ import { CATEGORY_OPTIONS, categoryName } from '~~/shared/categories'
 import { channelStats } from '~~/shared/channel-stats'
 import { applyFilters, defaultFilters, topWords } from '~~/shared/filters'
 
-type Mode = 'trends' | 'following' | 'discover' | 'channels'
+type Mode = 'home' | 'trends' | 'following' | 'discover' | 'channels'
 type FoundChannel = Channel & { followed: boolean }
 type TrendTopic = Topic & { count: number }
 type TrendVideo = ScoredVideo & { topicIds: string[] }
 
 const { data, error: loadError, refresh } = await useFetch('/api/outliers')
 const { data: trendData, refresh: refreshTrends } = await useFetch('/api/trends')
+const { data: homeData, refresh: refreshHome } = await useFetch('/api/home')
+/** Todo lo que se lee de la base: tras cualquier cambio se vuelve a pedir junto. */
+const refreshAll = () => Promise.all([refresh(), refreshTrends(), refreshHome()])
 
 const channels = computed<Channel[]>(() => data.value?.channels ?? [])
 const videos = computed<ScoredVideo[]>(() => data.value?.videos ?? [])
@@ -19,14 +22,16 @@ const isOpen = computed(() => data.value?.open ?? false)
 const needsLogin = computed(() => loadError.value?.statusCode === 401)
 const channelById = computed(() => new Map(channels.value.map((c) => [c.id, c])))
 
-const mode = ref<Mode>('trends')
+const mode = ref<Mode>('home')
 const MODE_TITLES: Record<Mode, string> = {
+  home: 'Inicio',
   trends: 'Tendencias',
   following: 'Tus canales',
   discover: 'Descubrir',
   channels: 'Comparar canales',
 }
 const MODE_LEDES: Record<Mode, string> = {
+  home: 'Lo que pasó en tus canales y tus temas.',
   trends: 'Videos que rindieron muy por encima de lo normal en su canal, en los temas que sigues.',
   following: 'Videos que rindieron muy por encima de lo normal en su propio canal.',
   discover: 'Busca en todo YouTube y compara cada video con lo normal de su canal.',
@@ -184,7 +189,7 @@ async function addChannel() {
   try {
     const res = await $fetch('/api/channels', { method: 'POST', body: { input: newChannel.value } })
     newChannel.value = ''
-    await Promise.all([refresh(), refreshTrends()])
+    await refreshAll()
     notice.value = { kind: 'ok', text: `Agregaste ${res.channel.title} con ${res.videos} videos.` }
   } catch (err) {
     notice.value = { kind: 'error', text: messageOf(err) }
@@ -201,7 +206,7 @@ async function removeChannel(channel: Channel) {
     if (onlyChannel.value === channel.id) onlyChannel.value = null
     const found = discovered.value?.channels.find((c) => c.id === channel.id)
     if (found) found.followed = false
-    await Promise.all([refresh(), refreshTrends()])
+    await refreshAll()
     notice.value = { kind: 'ok', text: `Quitaste ${channel.title}.` }
   } catch (err) {
     notice.value = { kind: 'error', text: messageOf(err) }
@@ -231,7 +236,7 @@ async function updateAll() {
   } catch (err) {
     notice.value = { kind: 'error', text: messageOf(err) }
   } finally {
-    await Promise.all([refresh(), refreshTrends()])
+    await refreshAll()
     busy.value = null
     progress.value = ''
   }
@@ -242,7 +247,13 @@ const search = reactive({ topic: '', category: '', days: 90, lang: 'es', order: 
 const searching = ref(false)
 const searchError = ref('')
 const searchedFor = ref('')
-const discovered = ref<{ channels: FoundChannel[]; videos: ScoredVideo[]; quotaUsed: number } | null>(null)
+const discovered = ref<{
+  channels: FoundChannel[]
+  videos: ScoredVideo[]
+  /** Videos largos recientes de cada canal encontrado: con ellos se analiza un resultado. */
+  context: ScoredVideo[]
+  quotaUsed: number
+} | null>(null)
 const following = ref<string | null>(null)
 const foundFilters = ref(defaultFilters({ periodDays: 0, minScore: 0 }))
 
@@ -289,17 +300,62 @@ async function followChannel(channelId: string) {
   following.value = channelId
   searchError.value = ''
   topicError.value = ''
+  homeError.value = ''
   try {
     await $fetch('/api/channels', { method: 'POST', body: { input: channelId } })
     const found = discovered.value?.channels.find((c) => c.id === channelId)
     if (found) found.followed = true
-    await Promise.all([refresh(), refreshTrends()])
+    await refreshAll()
   } catch (err) {
     const message = messageOf(err)
     if (mode.value === 'trends') topicError.value = message
+    else if (mode.value === 'home') homeError.value = message
     else searchError.value = message
   } finally {
     following.value = null
+  }
+}
+
+// Es mi canal
+const homeError = ref('')
+const savingMine = ref<string | null>(null)
+
+async function toggleMine(channel: Channel) {
+  if (isDemo.value || savingMine.value) return
+  savingMine.value = channel.id
+  notice.value = null
+  try {
+    await $fetch(`/api/channels/${channel.id}/mine`, { method: 'POST', body: { mine: !channel.isMine } })
+    await refreshAll()
+  } catch (err) {
+    notice.value = { kind: 'error', text: messageOf(err) }
+  } finally {
+    savingMine.value = null
+  }
+}
+
+// Analizar un video frente a su canal
+const analyzing = ref<{ video: ScoredVideo; channel?: Channel; videos: ScoredVideo[] | null; error: string } | null>(null)
+
+/** Canal del video en la sección en la que se pidió el análisis. */
+function channelFor(video: ScoredVideo): Channel | undefined {
+  return channelById.value.get(video.channelId) ?? trendChannelById.value.get(video.channelId) ?? foundChannelById.value.get(video.channelId)
+}
+
+async function analyze(video: ScoredVideo) {
+  const channel = channelFor(video)
+  // Primero lo que ya está en el navegador: tus canales o la búsqueda de Descubrir.
+  const own = videos.value.filter((v) => v.channelId === video.channelId)
+  const found = (discovered.value?.context ?? []).filter((v) => v.channelId === video.channelId)
+  const local = own.length > 0 ? own : found.length > 0 ? found : null
+  analyzing.value = { video, channel, videos: local, error: '' }
+  if (local) return
+  // Los de Tendencias se guardaron con el tema: se leen sin gastar cuota.
+  try {
+    const res = await $fetch('/api/channel-videos', { query: { id: video.channelId } })
+    if (analyzing.value?.video.id === video.id) analyzing.value = { video, channel, videos: res.videos, error: '' }
+  } catch (err) {
+    if (analyzing.value?.video.id === video.id) analyzing.value = { video, channel, videos: null, error: messageOf(err) }
   }
 }
 
@@ -315,7 +371,7 @@ async function logIn() {
   try {
     await $fetch('/api/login', { method: 'POST', body: { password: password.value } })
     password.value = ''
-    await Promise.all([refresh(), refreshTrends()])
+    await refreshAll()
   } catch (err) {
     loginError.value = messageOf(err)
   } finally {
@@ -337,6 +393,7 @@ async function logIn() {
       </a>
 
       <nav ref="modesEl" class="modes" :class="{ 'more-right': modesMore.right, 'more-left': modesMore.left }" aria-label="Sección" @scroll.passive="measureModes">
+        <button type="button" :aria-pressed="mode === 'home'" @click="mode = 'home'">Inicio</button>
         <button type="button" :aria-pressed="mode === 'trends'" @click="mode = 'trends'">Tendencias</button>
         <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
         <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
@@ -463,7 +520,29 @@ async function logIn() {
               <img v-else-if="c.thumbnailUrl" class="avatar" :src="c.thumbnailUrl" alt="" loading="lazy" />
               <span v-else class="avatar avatar-blank" aria-hidden="true">{{ c.title.charAt(0) }}</span>
               <span class="chip-name">{{ c.title }}</span>
+              <span v-if="c.isMine" class="badge">Tuyo</span>
               <span v-if="c.subscriberCount" class="chip-subs">{{ compact.format(c.subscriberCount) }}</span>
+            </button>
+            <button
+              class="chip-mine"
+              type="button"
+              :aria-pressed="c.isMine"
+              :aria-label="`Es mi canal: ${c.title}`"
+              :aria-disabled="isDemo || savingMine !== null ? 'true' : undefined"
+              :title="isDemo ? 'No disponible en modo demo' : c.isMine ? 'Ya no es mi canal' : 'Es mi canal'"
+              @click="toggleMine(c)"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <circle cx="8" cy="5.5" r="2.75" :fill="c.isMine ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.5" />
+                <path
+                  d="M2.75 13.75c.6-2.6 2.7-4 5.25-4s4.65 1.4 5.25 4"
+                  :fill="c.isMine ? 'currentColor' : 'none'"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </button>
             <button
               v-if="!isDemo"
@@ -490,8 +569,28 @@ async function logIn() {
     <section v-if="!needsLogin" id="seccion" class="ranking" aria-labelledby="ranking-title">
       <h2 id="ranking-title" class="sr-only">Videos y canales</h2>
 
+      <!-- Inicio: lo que pasó en tus canales y tus temas -->
+      <HomeFeed
+        v-if="mode === 'home'"
+        :videos="videos"
+        :channels="channels"
+        :channel-by-id="channelById"
+        :topics="topics"
+        :topic-label="topicLabel"
+        :trend-videos="trendVideos"
+        :trend-channels="trendChannels"
+        :momentum="homeData?.momentum ?? {}"
+        :history="homeData?.history ?? {}"
+        :is-demo="isDemo"
+        :following="following"
+        :error="homeError"
+        @analyze="analyze"
+        @follow="followChannel"
+        @go="mode = $event"
+      />
+
       <!-- Tendencias: temas que sigues en todo YouTube -->
-      <template v-if="mode === 'trends'">
+      <template v-else-if="mode === 'trends'">
         <template v-if="!isDemo">
           <form class="ask" @submit.prevent="addTopic">
             <label class="ask-label" for="new-topic">Tema</label>
@@ -557,9 +656,10 @@ async function logIn() {
             :videos="trendResults"
             :channels="trendChannelById"
             :summary="trendSummary"
+            @analyze="analyze"
           >
             <template #action="{ video }">
-              <FollowButton :channel="trendChannelById.get(video.channelId)" :busy-id="following" @follow="followChannel" />
+              <FollowButton :channel="trendChannelById.get(video.channelId)" :busy-id="following" :demo="isDemo" @follow="followChannel" />
             </template>
           </VideoResults>
           <div v-else class="empty">
@@ -584,6 +684,7 @@ async function logIn() {
             heading="En alza en tus canales"
             summary="Lo que más rápido suma vistas entre lo publicado en los últimos 30 días"
             own-switch
+            @analyze="analyze"
           />
         </template>
 
@@ -607,6 +708,7 @@ async function logIn() {
           :videos="results"
           :channels="channelById"
           :summary="summary"
+          @analyze="analyze"
         >
           <template v-if="words.length > 0" #aside>
             <p class="words">
@@ -720,6 +822,7 @@ async function logIn() {
               :videos="foundResults"
               :channels="foundChannelById"
               :summary="foundSummary"
+              @analyze="analyze"
             >
               <template #action="{ video }">
                 <FollowButton :channel="foundChannelById.get(video.channelId)" :busy-id="following" @follow="followChannel" />
@@ -760,5 +863,13 @@ async function logIn() {
         </div>
       </template>
     </section>
+
+    <AnalysisPanel
+      :video="analyzing?.video ?? null"
+      :channel="analyzing?.channel"
+      :channel-videos="analyzing?.videos ?? null"
+      :error="analyzing?.error"
+      @close="analyzing = null"
+    />
   </div>
 </template>

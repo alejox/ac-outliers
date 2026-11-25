@@ -5,16 +5,19 @@ import { refreshAges, type Channel, type ScoredVideo } from '~~/shared/outliers'
  * Cada video trae los temas en los que apareció.
  */
 export default defineEventHandler(async () => {
-  if (appMode() === 'demo') return { topics: [], channels: [], videos: [] }
-
-  const [topics, followed] = await Promise.all([dbListTopics(), dbListChannels()])
-  const followedIds = new Set(followed.map((c) => c.id))
+  const demo = appMode() === 'demo'
+  const [topics, followed] = demo
+    ? [demoTopics(), demoData().channels]
+    : await Promise.all([dbListTopics(), dbListChannels()])
+  const followedById = new Map(followed.map((c) => [c.id, c]))
 
   const channels = new Map<string, Channel & { followed: boolean }>()
   const videos = new Map<string, ScoredVideo & { topicIds: string[] }>()
   for (const topic of topics) {
     for (const channel of topic.results?.channels ?? []) {
-      channels.set(channel.id, { ...channel, followed: followedIds.has(channel.id) })
+      // Lo guardado no sabe si después lo seguiste o lo marcaste como tuyo: eso se lee de tus canales.
+      const mine = followedById.get(channel.id)
+      channels.set(channel.id, { ...channel, isMine: mine?.isMine ?? false, followed: mine !== undefined })
     }
     for (const video of refreshAges(topic.results?.videos ?? [])) {
       const seen = videos.get(video.id)
@@ -24,7 +27,9 @@ export default defineEventHandler(async () => {
   }
 
   return {
-    topics: topics.map(({ results, ...topic }) => ({ ...topic, count: results?.videos.length ?? 0 })),
+    topics: topics.map(({ id, query, categoryId, language, days, fetchedAt, results }) => ({
+      id, query, categoryId, language, days, fetchedAt, count: results?.videos.length ?? 0,
+    })),
     channels: [...channels.values()],
     videos: [...videos.values()],
   }
