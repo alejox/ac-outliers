@@ -1,16 +1,16 @@
-/* Mismo sistema visual que la app: fondo casi negro, texto claro, un solo botón claro por pantalla. */
+/* Mismo sistema visual que la app ("sala de edición"): gris de estudio, blanco cálido, coral solo desde 10×. */
 
 :root {
-  --void: #040506;
-  --ink: #07080a;
-  --obsidian: #111214;
-  --graphite: #1b1c1e;
-  --border: #363739;
-  --ash: #9c9c9d;
-  --smoke: #6a6b6c;
-  --mist: #e6e6e6;
+  --void: #0e0e0f;
+  --ink: #18181a;
+  --obsidian: #18181a;
+  --graphite: #232326;
+  --border: rgba(255, 255, 255, 0.1);
+  --ash: #aeadaa;
+  --smoke: #8a8986;
+  --mist: #f4f3f1;
   --coral: #ff6363;
-  --ember: #452324;
+  --ember: #5a2a2b;
   color-scheme: dark;
 }
 
@@ -24,7 +24,7 @@ body {
   padding: 16px;
   background: var(--void);
   color: var(--mist);
-  font: 400 13px/1.45 Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font: 400 13px/1.45 Geist, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 [hidden] {
@@ -81,10 +81,10 @@ body {
 input[type='url'],
 input[type='password'] {
   width: 100%;
-  height: 32px;
-  padding: 0 10px;
+  height: 36px;
+  padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--ink);
   color: var(--mist);
   font: inherit;
@@ -92,7 +92,7 @@ input[type='password'] {
 input:focus-visible,
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.3);
+  outline: 2px solid var(--mist);
   outline-offset: 2px;
 }
 input[aria-invalid='true'] {
@@ -104,10 +104,10 @@ button,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font: 500 13px/1 Inter, system-ui, sans-serif;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font: 500 13px/1 Geist, system-ui, sans-serif;
   cursor: pointer;
   text-decoration: none;
 }

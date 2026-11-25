@@ -137,28 +137,48 @@ const MODE_LEDES: Record<Mode, string> = {
   saved: 'Los videos que guardaste desde la app o desde YouTube, con el score que tenían ese día.',
   mine: 'De dónde vienen las vistas de tu canal, qué buscan para encontrarte y qué videos te recomiendan.',
 }
-const view = ref<'list' | 'grid'>('list')
-// En celular las secciones se desplazan en horizontal: la activa siempre queda a la vista.
-watch(mode, () =>
-  nextTick(() =>
-    document.querySelector('.modes [aria-pressed="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }),
-  ),
+const view = ref<'list' | 'grid'>('grid')
+type NavEntry = { key: string; mode?: Mode; label?: string; count?: number; group?: string }
+/** Barra lateral: lo diario arriba, la investigación y la biblioteca en sus grupos. */
+const navItems = computed<NavEntry[]>(() => {
+  const out: NavEntry[] = [{ key: 'home', mode: 'home', label: 'Inicio' }]
+  if (hasMyChannel.value) out.push({ key: 'mine', mode: 'mine', label: 'Mi canal' })
+  out.push({ key: 'trends', mode: 'trends', label: 'Tendencias' })
+  out.push({ key: 'g1', group: 'Investigar' })
+  out.push({ key: 'following', mode: 'following', label: 'Tus canales', count: channels.value.length || undefined })
+  if (!isDemo.value) out.push({ key: 'discover', mode: 'discover', label: 'Descubrir' })
+  out.push({ key: 'channels', mode: 'channels', label: 'Comparar canales' })
+  if (!isDemo.value) {
+    out.push({ key: 'g2', group: 'Tu biblioteca' })
+    out.push({ key: 'saved', mode: 'saved', label: 'Guardados', count: savedVideos.value.length || undefined })
+  }
+  return out
+})
+const allSections = computed(() => navItems.value.filter((i) => i.mode) as { mode: Mode; label: string; count?: number }[])
+/** Barra inferior del celular: cuatro secciones a la vista y el resto en "Más". */
+const tabItems = computed(() => {
+  const order: Mode[] = ['home', 'following', 'trends', hasMyChannel.value ? 'mine' : isDemo.value ? 'channels' : 'discover']
+  return order.map((m) => allSections.value.find((i) => i.mode === m)).filter(Boolean) as { mode: Mode; label: string }[]
+})
+const moreItems = computed(() =>
+  allSections.value.filter((i) => !tabItems.value.some((t) => t.mode === i.mode)) as { mode: Mode; label: string; count?: number }[],
 )
-watch([mode, isDemo], () => nextTick(measureModes), { flush: 'post' })
-// Si las secciones no caben, el borde por donde sigue la fila se desvanece.
-const modesEl = ref<HTMLElement | null>(null)
-const modesMore = reactive({ left: false, right: false })
-function measureModes() {
-  const el = modesEl.value
-  if (!el) return
-  modesMore.left = el.scrollLeft > 4
-  modesMore.right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+const moreOpen = ref(false)
+function go(next: Mode) {
+  moreOpen.value = false
+  if (mode.value === next) return
+  mode.value = next
+  if (import.meta.client) window.scrollTo({ top: 0 })
 }
 onMounted(() => {
-  measureModes()
-  window.addEventListener('resize', measureModes)
+  // Si Google devolvió un error al entrar, se lleva a la vista el formulario donde se explica.
+  if (needsLogin.value && route.query.login) document.getElementById('entrar')?.scrollIntoView({ block: 'center' })
+  const closeMore = (e: Event) => {
+    if (moreOpen.value && !(e.target as HTMLElement).closest('.tab-more')) moreOpen.value = false
+  }
+  document.addEventListener('click', closeMore)
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && (moreOpen.value = false))
 })
-onBeforeUnmount(() => window.removeEventListener('resize', measureModes))
 const messageOf = (err: any) => err?.data?.message ?? 'Algo falló. Vuelve a intentar.'
 
 const subscribersOf = (list: Channel[]) => new Map(list.map((c) => [c.id, c.subscriberCount]))
@@ -193,7 +213,7 @@ const words = computed(() =>
 
 function showChannel(channelId: string) {
   onlyChannel.value = channelId
-  mode.value = 'following'
+  go('following')
 }
 
 // Tendencias: lo que está pegando en los temas que sigues
@@ -459,6 +479,21 @@ async function analyze(video: ScoredVideo) {
   }
 }
 
+// Búsqueda de la barra superior: solo lo ya cargado, sin gastar cuota
+const searchVideos = computed(() => [...videos.value, ...trendVideos.value, ...savedVideos.value])
+const channelTitleOf = (id: string) =>
+  (channelById.value.get(id) ?? trendChannelById.value.get(id) ?? savedChannelById.value.get(id))?.title
+function showTopic(id: string) {
+  onlyTopic.value = id
+  go('trends')
+}
+async function searchFromTop(query: string) {
+  search.topic = query
+  go('discover')
+  await nextTick()
+  document.getElementById('search-topic')?.focus()
+}
+
 // Entrada con contraseña
 const password = ref('')
 const loginError = ref('')
@@ -481,38 +516,86 @@ async function logIn() {
 </script>
 
 <template>
-  <div class="page" :class="{ 'page-public': needsLogin }">
-    <header v-if="!needsLogin" class="nav">
+  <Landing v-if="needsLogin" :google="Boolean(me?.google)">
+    <form class="login" @submit.prevent="logIn">
+      <template v-if="me?.google">
+        <a class="button login-google" href="/api/auth/google">
+          <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+            <path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z" />
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+          </svg>
+          Entrar con Google
+        </a>
+        <p v-if="route.query.login" class="notice notice-error" role="alert">{{ LOGIN_ERRORS[String(route.query.login)] ?? LOGIN_ERRORS.error }}</p>
+        <p v-if="me?.password" class="login-or">o con la contraseña de la app</p>
+      </template>
+      <template v-if="!me?.google || me?.password">
+        <label for="password">Contraseña</label>
+        <input id="password" v-model="password" type="password" autocomplete="current-password" :disabled="loggingIn" />
+        <button class="button" type="submit" :disabled="loggingIn">
+          {{ loggingIn ? 'Entrando' : 'Entrar' }}
+        </button>
+      </template>
+      <p v-if="loginError" class="notice notice-error" role="alert">{{ loginError }}</p>
+    </form>
+    </Landing>
+
+  <div v-else class="shell">
+    <aside class="side" aria-label="Navegación">
       <a class="brand" href="/">
-        <svg class="brand-mark" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
-          <rect width="20" height="20" rx="6" fill="#ff6363" />
-          <path d="M5 6v8M5 10h7" stroke="#040506" stroke-width="2" stroke-linecap="round" />
-          <circle cx="13" cy="10" r="3" fill="#040506" />
-        </svg>
+        <BrandMark :size="28" />
         <span>AC Outliers</span>
       </a>
-
-      <nav ref="modesEl" class="modes" :class="{ 'more-right': modesMore.right, 'more-left': modesMore.left }" aria-label="Sección" @scroll.passive="measureModes">
-        <button type="button" :aria-pressed="mode === 'home'" @click="mode = 'home'">Inicio</button>
-        <button v-if="hasMyChannel" type="button" :aria-pressed="mode === 'mine'" @click="mode = 'mine'">Mi canal</button>
-        <button type="button" :aria-pressed="mode === 'trends'" @click="mode = 'trends'">Tendencias</button>
-        <button type="button" :aria-pressed="mode === 'following'" @click="mode = 'following'">Tus canales</button>
-        <button v-if="!isDemo" type="button" :aria-pressed="mode === 'discover'" @click="mode = 'discover'">Descubrir</button>
-        <button type="button" :aria-pressed="mode === 'channels'" @click="mode = 'channels'">Comparar canales</button>
-        <button v-if="!isDemo" type="button" :aria-pressed="mode === 'saved'" @click="mode = 'saved'">
-          Guardados<span v-if="savedVideos.length > 0" class="count">{{ savedVideos.length }}</span>
-        </button>
+      <nav class="side-nav" aria-label="Secciones">
+        <template v-for="item in navItems" :key="item.key">
+          <p v-if="item.group" class="side-group">{{ item.group }}</p>
+          <button
+            v-else
+            class="nav-item"
+            type="button"
+            :aria-current="mode === item.mode ? 'page' : undefined"
+            @click="go(item.mode!)"
+          >
+            <NavIcon :name="item.mode!" />
+            <span class="nav-label">{{ item.label }}</span>
+            <span v-if="item.count" class="nav-count">{{ item.count }}</span>
+          </button>
+        </template>
       </nav>
+      <div class="side-foot">
+        <p v-if="isDemo"><strong>Modo demo</strong>Canales inventados para probar la app.</p>
+        <p v-else-if="me?.user?.channelTitle"><strong>{{ me.user.channelTitle }}</strong>Tu canal de YouTube</p>
+      </div>
+    </aside>
 
-      <div class="nav-action">
+    <header class="top">
+      <a class="brand top-brand" href="/">
+        <BrandMark :size="28" />
+        <span class="sr-only">AC Outliers</span>
+      </a>
+      <GlobalSearch
+        :videos="searchVideos"
+        :channels="channels"
+        :channel-title="channelTitleOf"
+        :topics="topics.map((t) => ({ id: t.id, label: topicLabel(t) }))"
+        :youtube="!isDemo"
+        @analyze="analyze"
+        @channel="showChannel"
+        @topic="showTopic"
+        @youtube="searchFromTop"
+      />
+      <div class="top-actions">
         <button
           v-if="!isDemo"
-          class="button button-primary"
+          class="button button-ghost top-sync"
           type="button"
           :disabled="busy !== null || (channels.length === 0 && topics.length === 0)"
+          :title="busy === 'sync' ? progress : 'Actualizar datos'"
           @click="updateAll"
         >
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
             <path
               d="M13.5 8a5.5 5.5 0 0 1-9.9 3.3M2.5 8a5.5 5.5 0 0 1 9.9-3.3M12.5 1.8v3h-3M3.5 14.2v-3h3"
               fill="none"
@@ -541,45 +624,13 @@ async function logIn() {
       </div>
     </header>
 
-    <Landing v-if="needsLogin" :google="Boolean(me?.google)">
-    <form class="login" @submit.prevent="logIn">
-      <p class="login-brand">
-        <svg class="brand-mark" viewBox="0 0 20 20" width="32" height="32" aria-hidden="true">
-          <rect width="20" height="20" rx="6" fill="#ff6363" />
-          <path d="M5 6v8M5 10h7" stroke="#040506" stroke-width="2" stroke-linecap="round" />
-          <circle cx="13" cy="10" r="3" fill="#040506" />
-        </svg>
-        <span>AC Outliers</span>
-      </p>
-      <p class="login-lede">Videos que rindieron muy por encima de lo normal en su propio canal.</p>
-      <template v-if="me?.google">
-        <a class="button login-google" href="/api/auth/google">
-          <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
-            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
-            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
-            <path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z" />
-            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
-          </svg>
-          Entrar con Google
-        </a>
-        <p v-if="route.query.login" class="notice notice-error" role="alert">{{ LOGIN_ERRORS[String(route.query.login)] ?? LOGIN_ERRORS.error }}</p>
-        <p v-if="me?.password" class="login-or">o con la contraseña de la app</p>
-      </template>
-      <template v-if="!me?.google || me?.password">
-        <label for="password">Contraseña</label>
-        <input id="password" v-model="password" type="password" autocomplete="current-password" :disabled="loggingIn" />
-        <button class="button" type="submit" :disabled="loggingIn">
-          {{ loggingIn ? 'Entrando' : 'Entrar' }}
-        </button>
-      </template>
-      <p v-if="loginError" class="notice notice-error" role="alert">{{ loginError }}</p>
-    </form>
-    </Landing>
-
-    <div v-if="!needsLogin" class="masthead">
-      <h1>{{ MODE_TITLES[mode] }}</h1>
-      <p class="lede">{{ MODE_LEDES[mode] }}</p>
-    </div>
+    <main class="main">
+      <div v-if="mode !== 'mine'" class="page-head">
+        <div>
+          <h1>{{ MODE_TITLES[mode] }}</h1>
+          <p class="lede">{{ MODE_LEDES[mode] }}</p>
+        </div>
+      </div>
 
     <div v-if="!needsLogin && (isDemo || isOpen || loadError)" class="banners">
       <p v-if="isDemo" class="banner">
@@ -1081,6 +1132,34 @@ async function logIn() {
         </div>
       </template>
     </section>
+    </main>
+
+    <nav class="tabbar" aria-label="Secciones">
+      <button
+        v-for="item in tabItems"
+        :key="item.mode"
+        class="tab"
+        type="button"
+        :aria-current="mode === item.mode ? 'page' : undefined"
+        @click="go(item.mode)"
+      >
+        <NavIcon :name="item.mode" />
+        <span>{{ item.label }}</span>
+      </button>
+      <div class="tab-more">
+        <button class="tab" type="button" :aria-expanded="moreOpen" :aria-current="moreItems.some((i) => i.mode === mode) ? 'page' : undefined" @click="moreOpen = !moreOpen">
+          <NavIcon name="more" />
+          <span>Más</span>
+        </button>
+        <div v-if="moreOpen" class="more-sheet">
+          <button v-for="item in moreItems" :key="item.mode" class="nav-item" type="button" :aria-current="mode === item.mode ? 'page' : undefined" @click="go(item.mode)">
+            <NavIcon :name="item.mode" />
+            <span class="nav-label">{{ item.label }}</span>
+            <span v-if="item.count" class="nav-count">{{ item.count }}</span>
+          </button>
+        </div>
+      </div>
+    </nav>
 
     <AnalysisPanel
       :video="analyzing?.video ?? null"

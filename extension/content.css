@@ -1,4 +1,5 @@
-/* Insignias de AC Outliers dentro de YouTube. Todo lleva el prefijo acx- para no chocar con la página. */
+/* Insignias de AC Outliers dentro de YouTube. Todo lleva el prefijo acx- para no chocar con la página.
+   Mismos tokens que la app ("sala de edición"): gris de estudio, blanco cálido y coral solo desde 10×. */
 
 .acx-anchor {
   position: relative;
@@ -12,13 +13,15 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 22px;
-  padding: 0 7px;
-  border: 1px solid #363739;
-  border-radius: 6px;
-  background: rgba(17, 18, 20, 0.92);
-  color: #e6e6e6;
-  font: 600 12px/1 Inter, Roboto, Arial, sans-serif;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(14, 14, 15, 0.86);
+  color: #f4f3f1;
+  font: 700 13px/1 Roboto, Arial, sans-serif;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   pointer-events: auto;
@@ -36,13 +39,11 @@
 }
 
 .acx-badge[data-tier='low'] {
-  color: #9c9c9d;
+  color: #aeadaa;
 }
 .acx-badge[data-tier='top'] {
-  color: #ff6363;
-}
-.acx-badge[data-tier='top'] .acx-dot {
-  display: block;
+  background: #ff6363;
+  color: #1c0b0b;
 }
 
 /* Página de un video: una línea bajo el título. */
@@ -54,16 +55,16 @@
   max-width: 100%;
   margin-top: 8px;
   padding: 6px 10px;
-  border: 1px solid #363739;
-  border-radius: 8px;
-  background: #111214;
-  color: #9c9c9d;
-  font: 400 13px/1.35 Inter, Roboto, Arial, sans-serif;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: #18181a;
+  color: #aeadaa;
+  font: 400 13px/1.35 Roboto, Arial, sans-serif;
   box-sizing: border-box;
 }
 
 .acx-chip-score {
-  color: #e6e6e6;
+  color: #f4f3f1;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -95,40 +96,41 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid #363739;
-  border-radius: 6px;
-  background: #1b1c1e;
-  color: #e6e6e6;
-  font: 500 12px/1 Inter, Roboto, Arial, sans-serif;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #232326;
+  color: #f4f3f1;
+  font: 500 12px/1 Roboto, Arial, sans-serif;
   cursor: pointer;
 }
 .acx-button:hover:not(:disabled) {
-  background: #242527;
+  background: #2d2d31;
 }
 .acx-button:disabled {
   opacity: 0.6;
   cursor: default;
 }
 .acx-button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.3);
+  outline: 2px solid #f4f3f1;
   outline-offset: 2px;
 }
 .acx-button[aria-pressed='true'],
 .acx-button[aria-expanded='true'] {
-  border-color: rgba(255, 255, 255, 0.25);
+  background: #f4f3f1;
+  color: #0e0e0f;
 }
 .acx-ghost {
   background: transparent;
 }
 .acx-count {
-  color: #9c9c9d;
+  color: #aeadaa;
   font-variant-numeric: tabular-nums;
 }
 .acx-state {
   padding: 0 4px;
-  color: #9c9c9d;
+  color: #aeadaa;
   font-size: 12px;
 }
 .acx-message {
@@ -150,10 +152,11 @@
   list-style: none;
 }
 .acx-tags li {
-  padding: 3px 8px;
-  border: 1px solid #363739;
-  border-radius: 6px;
-  color: #e6e6e6;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #232326;
+  color: #f4f3f1;
   font-size: 12px;
 }
 .acx-tags .acx-button {
@@ -162,11 +165,11 @@
 
 /* Recién publicado: sin juicio todavía, en gris */
 .acx-badge[data-tier='new'] {
-  color: #9c9c9d;
+  color: #aeadaa;
   font-weight: 500;
 }
 .acx-chip[data-tier='new'] .acx-chip-score {
-  color: #9c9c9d;
+  color: #aeadaa;
 }
 
 /* Tarjeta al pasar el mouse por la insignia */
@@ -175,12 +178,12 @@
   z-index: 2147483000;
   width: 236px;
   padding: 12px;
-  border: 1px solid #363739;
-  border-radius: 10px;
-  background: #111214;
-  color: #e6e6e6;
-  font: 400 12px/1.4 Inter, Roboto, Arial, sans-serif;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: #18181a;
+  color: #f4f3f1;
+  font: 400 12px/1.4 Roboto, Arial, sans-serif;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
   pointer-events: none;
   box-sizing: border-box;
 }
@@ -191,33 +194,33 @@
   margin: 0;
 }
 .acx-card-head {
-  color: #9c9c9d;
+  color: #aeadaa;
   font-size: 13px;
 }
 .acx-card-score {
   margin-right: 4px;
-  color: #e6e6e6;
-  font-size: 16px;
-  font-weight: 600;
+  color: #f4f3f1;
+  font-size: 18px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .acx-card[data-tier='top'] .acx-card-score {
   color: #ff6363;
 }
 .acx-card[data-tier='new'] .acx-card-head {
-  color: #e6e6e6;
+  color: #f4f3f1;
   font-weight: 600;
 }
 .acx-card-note {
   margin-top: 2px !important;
-  color: #9c9c9d;
+  color: #aeadaa;
 }
 .acx-card dl {
   display: grid;
   gap: 6px;
   margin: 10px 0 0;
   padding-top: 10px;
-  border-top: 1px solid #363739;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 .acx-card dl div {
   display: flex;
@@ -225,7 +228,7 @@
   gap: 12px;
 }
 .acx-card dt {
-  color: #9c9c9d;
+  color: #aeadaa;
 }
 .acx-card dd {
   margin: 0;

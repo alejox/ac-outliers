@@ -68,3 +68,82 @@ export const ANALYTICS_PERIODS = [7, 28, 90] as const
 export type AnalyticsPeriod = (typeof ANALYTICS_PERIODS)[number]
 export const parsePeriod = (value: unknown): AnalyticsPeriod =>
   ANALYTICS_PERIODS.find((p) => String(p) === String(value)) ?? 28
+
+const DAY = 86_400_000
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+const dayMs = (iso: string) => Date.parse(`${iso}T00:00:00Z`)
+
+/** El periodo del mismo largo que termina justo antes de `periodDates(days)`: con él se compara. */
+export function previousPeriodDates(days: number, now: Date = new Date()): { startDate: string; endDate: string } {
+  const current = periodDates(days, now)
+  const end = dayMs(current.startDate) - DAY
+  return { startDate: isoDay(end - (days - 1) * DAY), endDate: isoDay(end) }
+}
+
+export interface ChannelTotals {
+  views: number
+  minutes: number
+  averageViewDuration: number
+  subscribersGained: number
+  subscribersLost: number
+}
+
+/** Los totales de un reporte sin dimensiones (una sola fila). Sin fila, todo en cero. */
+export function readTotals(row: Record<string, any> | undefined): ChannelTotals {
+  return {
+    views: Number(row?.views ?? 0),
+    minutes: Number(row?.estimatedMinutesWatched ?? 0),
+    averageViewDuration: Number(row?.averageViewDuration ?? 0),
+    subscribersGained: Number(row?.subscribersGained ?? 0),
+    subscribersLost: Number(row?.subscribersLost ?? 0),
+  }
+}
+
+export const netSubscribers = (t: ChannelTotals) => t.subscribersGained - t.subscribersLost
+
+/** Cambio relativo frente al periodo anterior (0,22 = +22 %). null si antes no había con qué comparar. */
+export function relativeChange(current: number, previous: number): number | null {
+  if (!Number.isFinite(previous) || previous === 0) return null
+  return (current - previous) / Math.abs(previous)
+}
+
+export interface TotalsChange {
+  views: number | null
+  hours: number | null
+  averageViewDuration: number | null
+  subscribers: number | null
+}
+
+/** Cuánto cambió cada cifra de Mi canal frente al periodo anterior del mismo largo. */
+export function compareTotals(current: ChannelTotals, previous: ChannelTotals): TotalsChange {
+  return {
+    views: relativeChange(current.views, previous.views),
+    hours: relativeChange(current.minutes, previous.minutes),
+    averageViewDuration: relativeChange(current.averageViewDuration, previous.averageViewDuration),
+    subscribers: relativeChange(netSubscribers(current), netSubscribers(previous)),
+  }
+}
+
+export interface DailyViews {
+  /** AAAA-MM-DD */
+  date: string
+  views: number
+}
+
+/** Vistas por día de todo el periodo, en orden. Los días que Analytics no devuelve valen cero. */
+export function dailySeries(rows: { day: string; views: number }[], startDate: string, endDate: string): DailyViews[] {
+  const byDay = new Map(rows.map((r) => [String(r.day), Number(r.views) || 0]))
+  const out: DailyViews[] = []
+  for (let t = dayMs(startDate); t <= dayMs(endDate); t += DAY) {
+    const date = isoDay(t)
+    out.push({ date, views: byDay.get(date) ?? 0 })
+  }
+  return out
+}
+
+/** El día con más vistas del periodo (el primero si hay empate). null si no hubo vistas. */
+export function peakDay(series: DailyViews[]): DailyViews | null {
+  let best: DailyViews | null = null
+  for (const d of series) if (d.views > 0 && (!best || d.views > best.views)) best = d
+  return best
+}

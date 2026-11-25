@@ -2,6 +2,7 @@ import type { ChangeKind, VideoChange } from '~~/shared/changes'
 import type { ChannelSnapshot } from '~~/shared/achievements'
 import { topicMomentum, type MomentumPoint } from '~~/shared/home'
 import { scoreVideos, type Channel, type ScoredVideo, type Topic, type Video } from '~~/shared/outliers'
+import { dailySeries, previousPeriodDates } from '~~/shared/analytics'
 
 // Datos de ejemplo para probar la app sin claves. Los canales son inventados.
 
@@ -307,18 +308,29 @@ export function demoMyChannel(period: number) {
     ['Kick vs Twitch: los números reales', 'Byte a Byte'],
     ['Probé el modo vertical de OBS', 'Código en Pijama'],
   ]
+  const dates = periodDatesDemo(period)
+  const views = Math.round(184_200 * scale)
   return {
     demo: true,
     channel: { id: 'demo', title: 'Código en Pijama' },
     period,
-    ...periodDatesDemo(period),
+    ...dates,
     totals: {
-      views: Math.round(184_200 * scale),
+      views,
       minutes: Math.round(612_400 * scale),
       averageViewDuration: 247,
       subscribersGained: Math.round(1_830 * scale),
       subscribersLost: Math.round(210 * scale),
     },
+    previous: {
+      ...previousPeriodDates(period),
+      views: Math.round(151_000 * scale),
+      minutes: Math.round(518_900 * scale),
+      averageViewDuration: 255,
+      subscribersGained: Math.round(1_350 * scale),
+      subscribersLost: Math.round(200 * scale),
+    },
+    daily: demoDaily(dates.startDate, dates.endDate, views),
     sources: [
       { type: 'RELATED_VIDEO', name: 'Videos sugeridos', views: 0, share: 0.41 },
       { type: 'YT_SEARCH', name: 'Búsqueda de YouTube', views: 0, share: 0.27 },
@@ -337,6 +349,20 @@ export function demoMyChannel(period: number) {
       own: false,
     })),
   }
+}
+
+/** Vistas por día de ejemplo: una base que sube despacio y un video que despega a dos tercios del periodo. */
+function demoDaily(startDate: string, endDate: string, total: number) {
+  const base = dailySeries([], startDate, endDate)
+  const n = base.length
+  const peak = Math.floor(n * 0.66)
+  const weights = base.map((_, i) => {
+    const wave = 1 + 0.12 * Math.sin(i * 1.7)
+    const lift = i >= peak ? 1 + 2.6 * Math.exp(-(i - peak) / Math.max(2, n / 10)) : 1
+    return (0.8 + (0.25 * i) / n) * wave * lift
+  })
+  const sum = weights.reduce((a, b) => a + b, 0)
+  return base.map((d, i) => ({ date: d.date, views: Math.round((total * weights[i]!) / sum) }))
 }
 
 function periodDatesDemo(days: number) {
