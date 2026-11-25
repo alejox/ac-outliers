@@ -4,7 +4,7 @@ import { CATEGORY_OPTIONS, categoryName } from '~~/shared/categories'
 import { channelStats } from '~~/shared/channel-stats'
 import { applyFilters, defaultFilters, topWords } from '~~/shared/filters'
 
-type Mode = 'home' | 'mine' | 'trends' | 'following' | 'discover' | 'channels' | 'saved'
+type Mode = 'home' | 'mine' | 'trends' | 'following' | 'discover' | 'channels' | 'words' | 'saved'
 type FoundChannel = Channel & { followed: boolean }
 type TrendTopic = Topic & { count: number }
 type TrendVideo = ScoredVideo & { topicIds: string[] }
@@ -106,7 +106,27 @@ const videoChanges = computed<Record<string, { kind: 'title' | 'thumbnail'; at: 
 provide('videoChanges', videoChanges)
 
 const route = useRoute()
-const mode = ref<Mode>(route.query.seccion === 'mi-canal' ? 'mine' : 'home')
+/** Cada sección tiene su dirección (?seccion=…), así recargar o compartir el enlace abre la misma. */
+const SECTION_SLUGS: Record<Mode, string> = {
+  home: '',
+  mine: 'mi-canal',
+  trends: 'tendencias',
+  following: 'canales',
+  discover: 'descubrir',
+  channels: 'comparar',
+  words: 'palabras',
+  saved: 'guardados',
+}
+const modeFromSlug = (slug: unknown) =>
+  (Object.entries(SECTION_SLUGS).find(([, s]) => s && s === slug)?.[0] as Mode | undefined) ?? 'home'
+const mode = ref<Mode>(modeFromSlug(route.query.seccion))
+const router = useRouter()
+watch(mode, (m) => {
+  const query = { ...route.query }
+  if (SECTION_SLUGS[m]) query.seccion = SECTION_SLUGS[m]
+  else delete query.seccion
+  router.replace({ query })
+})
 const hasMyChannel = computed(() => isDemo.value || Boolean(me.value?.user?.channelId))
 const LOGIN_ERRORS: Record<string, string> = {
   cancelado: 'Cancelaste la entrada con Google.',
@@ -125,6 +145,7 @@ const MODE_TITLES: Record<Mode, string> = {
   following: 'Tus canales',
   discover: 'Descubrir',
   channels: 'Comparar canales',
+  words: 'Palabras',
   saved: 'Guardados',
   mine: 'Mi canal',
 }
@@ -134,6 +155,7 @@ const MODE_LEDES: Record<Mode, string> = {
   following: 'Videos que rindieron muy por encima de lo normal en su propio canal.',
   discover: 'Busca en todo YouTube y compara cada video con lo normal de su canal.',
   channels: 'Cómo le va a cada canal que sigues.',
+  words: 'Las frases y etiquetas que comparten los videos que rindieron varias veces lo normal.',
   saved: 'Los videos que guardaste desde la app o desde YouTube, con el score que tenían ese día.',
   mine: 'De dónde vienen las vistas de tu canal, qué buscan para encontrarte y qué videos te recomiendan.',
 }
@@ -148,6 +170,7 @@ const navItems = computed<NavEntry[]>(() => {
   out.push({ key: 'following', mode: 'following', label: 'Tus canales', count: channels.value.length || undefined })
   if (!isDemo.value) out.push({ key: 'discover', mode: 'discover', label: 'Descubrir' })
   out.push({ key: 'channels', mode: 'channels', label: 'Comparar canales' })
+  out.push({ key: 'words', mode: 'words', label: 'Palabras' })
   if (!isDemo.value) {
     out.push({ key: 'g2', group: 'Tu biblioteca' })
     out.push({ key: 'saved', mode: 'saved', label: 'Guardados', count: savedVideos.value.length || undefined })
@@ -756,6 +779,20 @@ async function logIn() {
 
       <!-- Mi canal: YouTube Analytics de la cuenta que entró con Google -->
       <MyChannel v-if="mode === 'mine'" />
+
+      <!-- Palabras: lo que comparten los outliers -->
+      <KeywordsView
+        v-else-if="mode === 'words'"
+        :videos="videos"
+        :channels="channels"
+        :trend-videos="trendVideos"
+        :topics="topics"
+        :topic-label="topicLabel"
+        :has-my-channel="hasMyChannel"
+        :is-demo="isDemo"
+        @analyze="analyze"
+        @go="mode = $event"
+      />
 
       <!-- Inicio: lo que pasó en tus canales y tus temas -->
       <HomeFeed

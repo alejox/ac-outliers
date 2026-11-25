@@ -27,6 +27,8 @@ export interface Video {
   views: number
   likes: number | null
   comments: number | null
+  /** Etiquetas que puso el creador. Solo las traen las rutas que las necesitan. */
+  tags?: string[] | null
   /** Cuándo se leyeron estas cifras de YouTube. Si falta, se asume ahora. */
   fetchedAt?: string
 }

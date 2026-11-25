@@ -101,6 +101,7 @@ function toVideo(item: any, isShort: boolean | null): Video | null {
     views: Number(item.statistics.viewCount),
     likes: toNumber(item.statistics.likeCount),
     comments: toNumber(item.statistics.commentCount),
+    tags: Array.isArray(item.snippet?.tags) ? (item.snippet.tags as string[]).slice(0, 60) : [],
   }
 }
 

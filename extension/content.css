@@ -159,6 +159,32 @@
   color: #f4f3f1;
   font-size: 12px;
 }
+.acx-tags li.acx-hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: inset 0 0 0 1px rgba(255, 99, 99, 0.45);
+}
+.acx-hit-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff6363;
+}
+.acx-tags-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #aeadaa;
+  font-size: 12px;
+}
+.acx-tags ul.acx-missing li {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px #3a3a3e;
+  color: #d6d5d2;
+}
 .acx-tags .acx-button {
   justify-self: start;
 }

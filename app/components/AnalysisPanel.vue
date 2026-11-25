@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { analyzeVideo, MIN_COMPARABLE } from '~~/shared/analysis'
+import { outlierKeywords, titlePhrases } from '~~/shared/keywords'
 import type { Channel, ScoredVideo } from '~~/shared/outliers'
 
 const props = defineProps<{
@@ -25,6 +26,13 @@ const saver = inject<{
   busy: Ref<string | null>
   toggle: (video: ScoredVideo) => void
 } | null>('saver', null)
+// Frases de los títulos que comparten los outliers del canal, y cuáles usa este video.
+const channelWords = computed(() => {
+  if (!props.video || !props.channelVideos) return []
+  const list = [props.video, ...props.channelVideos.filter((v) => v.id !== props.video!.id)]
+  return outlierKeywords(list.map((v) => ({ id: v.id, title: v.title, score: v.score })), 'titles', { limit: 6 })
+})
+const ownKeys = computed(() => new Set(props.video ? titlePhrases(props.video.title).map((p) => p.key) : []))
 const format = computed(() => (props.video?.isShort ? 'Shorts' : 'videos largos'))
 
 // Cambios de título y miniatura: solo se piden si la fila ya sabe que el video cambió.
@@ -227,6 +235,16 @@ onBeforeUnmount(() => document.documentElement.classList.remove('has-drawer'))
               </dl>
             </li>
           </ol>
+          <section v-if="channelWords.length > 0" class="awords" aria-labelledby="awords-title">
+            <h3 id="awords-title" class="changes-title">Lo que comparten los outliers del canal</h3>
+            <p class="analysis-note">Frases de título que se repiten en sus videos de 2× o más. Las marcadas también están en este video.</p>
+            <ul class="awords-list">
+              <li v-for="w in channelWords" :key="w.key" :class="{ 'is-own': ownKeys.has(w.key) }">
+                <span class="awords-text">{{ w.text }}</span>
+                <span class="awords-meta">{{ w.outliers }} outliers · {{ formatScore(w.avgScore) }}</span>
+              </li>
+            </ul>
+          </section>
         </template>
       </div>
     </div>

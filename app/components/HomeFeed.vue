@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { channelAchievements, type Achievement, type ChannelSnapshot } from '~~/shared/achievements'
+import { outlierKeywords } from '~~/shared/keywords'
 import {
+  bestOf,
+  channelPulse,
   currentOutliers,
   largestMine,
   momentumTrend,
@@ -29,7 +32,7 @@ const props = defineProps<{
   following: string | null
   error?: string
 }>()
-defineEmits<{ analyze: [video: ScoredVideo]; follow: [channelId: string]; go: [mode: 'following' | 'trends'] }>()
+defineEmits<{ analyze: [video: ScoredVideo]; follow: [channelId: string]; go: [mode: 'following' | 'trends' | 'words' | 'mine'] }>()
 
 // Novedades desde tu última visita. Se recuerdan en este navegador: qué outliers ya viste y cuándo.
 // Durante la misma sesión se compara siempre con la visita anterior, así recargar no las borra.
@@ -76,7 +79,12 @@ const hero = computed(() => {
   const fromNews = strongest(news.value)
   if (fromNews) return { video: fromNews, kicker: 'El más fuerte desde tu última visita' }
   const fromHits = strongest(hits.value)
-  return fromHits ? { video: fromHits, kicker: 'Tu mejor éxito de los últimos 14 días' } : null
+  if (fromHits) return { video: fromHits, kicker: 'Tu mejor éxito de los últimos 14 días' }
+  // Sin novedades ni éxitos recientes, Inicio no queda vacío: lo más fuerte de los últimos 3 meses.
+  const fromQuarter = bestOf([...props.videos, ...props.trendVideos], 90, 1)[0]
+  if (!fromQuarter) return null
+  const own = props.channels.find((c) => c.id === fromQuarter.channelId)?.isMine
+  return { video: fromQuarter, kicker: own ? 'Tu mejor video de los últimos 3 meses' : 'Lo más fuerte de los últimos 3 meses en tus canales y temas' }
 })
 const newsRest = computed(() => newsShown.value.filter((v) => v.id !== hero.value?.video.id))
 const hitsRest = computed(() => hits.value.filter((v) => v.id !== hero.value?.video.id))
@@ -86,6 +94,46 @@ const saver = inject<{
   busy: Ref<string | null>
   toggle: (video: ScoredVideo) => void
 } | null>('saver', null)
+
+// Tu canal ahora: tus últimas subidas frente a lo normal.
+const pulse = computed(() => {
+  const c = props.channels.find((x) => x.isMine)
+  if (!c) return null
+  const p = channelPulse(props.videos, c.id)
+  return p.recent.length > 0 ? { channel: c, ...p } : null
+})
+const pulseMax = computed(() => Math.max(4, ...(pulse.value?.recent.map((v) => v.score ?? 0) ?? [])))
+/** Altura en escala logarítmica: un 13× no aplasta a los demás y "lo normal" (1×) queda visible. */
+const barHeight = (score: number | null) => (Math.log2(1 + (score ?? 0)) / Math.log2(1 + pulseMax.value)) * 100
+const pulseLine = computed(() => {
+  const m = pulse.value?.median
+  if (m === null || m === undefined) return 'Todavía no hay suficientes videos para comparar.'
+  if (m >= 1.5) return `Tus últimos 5 videos van a ${formatScore(m)} de lo normal: estás en racha.`
+  if (m >= 0.8) return `Tus últimos 5 videos van a ${formatScore(m)} de lo normal: en tu ritmo de siempre.`
+  return `Tus últimos 5 videos van a ${formatScore(m)} de lo normal: por debajo de tu ritmo. Mira qué está pegando en tu tema.`
+})
+
+// Lo mejor del mes en tus canales y temas, sin repetir lo que ya está arriba.
+const shownIds = computed(() => new Set([hero.value?.video.id, ...news.value.map((v) => v.id), ...hits.value.map((v) => v.id)].filter(Boolean) as string[]))
+const monthBest = computed(() => bestOf([...props.videos, ...props.trendVideos], 30, 8, shownIds.value))
+
+// Palabras del momento: frases de título que comparten los outliers de tus canales y temas.
+const words = computed(() => {
+  const seen = new Set<string>()
+  const list = [...props.videos, ...props.trendVideos].filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)))
+  return outlierKeywords(list.map((v) => ({ id: v.id, title: v.title, score: v.score })), 'titles', { limit: 8 })
+})
+
+// Primeros pasos: lo que le falta a Inicio para tener más que contar.
+const setup = computed(() => {
+  const following = props.channels.filter((c) => !c.isMine).length
+  const steps = [
+    { key: 'channels', done: following >= 5, label: 'Sigue 5 canales de tu tema', detail: `${Math.min(following, 5)} de 5`, ratio: Math.min(following, 5) / 5, go: 'following' as const, action: 'Buscar canales' },
+    { key: 'topics', done: props.topics.length > 0, label: 'Sigue un tema', detail: props.topics.length > 0 ? 'Listo' : 'Ve qué pega en todo YouTube', ratio: props.topics.length > 0 ? 1 : 0, go: 'trends' as const, action: 'Elegir un tema' },
+    { key: 'mine', done: props.channels.some((c) => c.isMine), label: 'Marca tu canal', detail: 'Para ver tu ritmo y tus logros', ratio: props.channels.some((c) => c.isMine) ? 1 : 0, go: 'following' as const, action: 'Marcar mi canal' },
+  ]
+  return { steps, left: steps.filter((s) => !s.done).length }
+})
 
 // b. Impulso de tus temas
 const momentumRows = computed(() =>
@@ -161,7 +209,7 @@ function remaining(a: Achievement): string {
 }
 
 const anything = computed(
-  () => news.value.length > 0 || hits.value.length > 0 || props.topics.length > 0 || suggestions.value.length > 0 || mine.value.length > 0,
+  () => hero.value !== null || pulse.value !== null || news.value.length > 0 || hits.value.length > 0 || props.topics.length > 0 || suggestions.value.length > 0 || mine.value.length > 0,
 )
 </script>
 
@@ -228,6 +276,71 @@ const anything = computed(
       </div>
     </article>
 
+    <!-- Tu canal ahora -->
+    <section v-if="pulse" class="pulse panel" aria-labelledby="feed-pulse">
+      <div class="pulse-head">
+        <img v-if="pulse.channel.thumbnailUrl" class="pulse-avatar" :src="pulse.channel.thumbnailUrl" alt="" />
+        <span v-else class="pulse-avatar" :style="{ '--hue': hueOf(pulse.channel.id) }" aria-hidden="true">{{ pulse.channel.title.charAt(0) }}</span>
+        <div>
+          <h2 id="feed-pulse" class="panel-title">{{ pulse.channel.title }}</h2>
+          <p class="panel-sub">
+            <template v-if="pulse.channel.subscriberCount !== null">{{ compact.format(pulse.channel.subscriberCount) }} suscriptores</template>
+            <template v-if="pulse.channel.viewCount !== null"> · {{ compact.format(pulse.channel.viewCount) }} vistas</template>
+          </p>
+        </div>
+        <button class="link-button pulse-more" type="button" @click="$emit('go', 'mine')">Ver Mi canal</button>
+      </div>
+      <p class="pulse-line">{{ pulseLine }}</p>
+      <ol class="pulse-bars" aria-label="Score de tus últimos videos largos, del más viejo al más nuevo">
+        <li
+          v-for="v in pulse.recent"
+          :key="v.id"
+          :class="`is-${badgeTier(v.score)}`"
+        >
+          <button type="button" :title="`${v.title} · ${v.score !== null ? formatScore(v.score) : 'sin score'}`" @click="$emit('analyze', v)">
+            <span v-if="v.score !== null && v.score >= 2" class="pulse-tag">{{ formatScore(v.score) }}</span>
+            <span class="pulse-bar" :style="{ height: `${Math.max(3, barHeight(v.score))}%` }" />
+            <span class="sr-only">{{ v.title }}: {{ v.score !== null ? formatScore(v.score) : 'sin score' }}</span>
+          </button>
+        </li>
+        <li class="pulse-normal" aria-hidden="true" :style="{ bottom: `${barHeight(1)}%` }"><span>lo normal</span></li>
+      </ol>
+      <div v-if="pulse.latest" class="pulse-latest">
+        <button class="pulse-thumb" type="button" :aria-label="`Analizar “${pulse.latest.title}”`" @click="$emit('analyze', pulse.latest)">
+          <VideoThumb :src="pulse.latest.thumbnailUrl" :title="pulse.latest.title" :seed="pulse.latest.channelId" :score="pulse.latest.score" />
+        </button>
+        <div>
+          <p class="pulse-kicker">Tu último video · {{ formatAge(pulse.latest.ageDays) }}</p>
+          <p class="pulse-title">{{ pulse.latest.title }}</p>
+          <p class="pulse-meta">
+            {{ compact.format(pulse.latest.views) }} vistas · {{ formatPace(pulse.latest.viewsPerHour) }} por hora
+            <template v-if="pulse.latest.baseline !== null"> · lo normal: {{ compact.format(pulse.latest.baseline) }}</template>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Primeros pasos -->
+    <section v-if="!isDemo && setup.left > 0" class="setup" aria-labelledby="feed-setup">
+      <div>
+        <h2 id="feed-setup" class="setup-title">Dale más a Inicio para contarte</h2>
+        <p class="section-sub">Entre más canales y temas sigas, más outliers, palabras y competidores aparecen aquí.</p>
+      </div>
+      <ol class="setup-steps">
+        <li v-for="st in setup.steps" :key="st.key" :class="{ 'is-done': st.done }">
+          <span class="setup-mark" aria-hidden="true">
+            <svg v-if="st.done" viewBox="0 0 12 12" width="12" height="12"><path d="M2.5 6.25 5 8.75l4.5-5.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </span>
+          <div class="setup-text">
+            <p class="setup-label">{{ st.label }}<span class="sr-only">{{ st.done ? ', listo' : '' }}</span></p>
+            <p class="setup-detail">{{ st.detail }}</p>
+            <span v-if="!st.done && st.ratio > 0" class="meter"><span class="meter-fill" :style="{ width: `${st.ratio * 100}%` }" /></span>
+          </div>
+          <button v-if="!st.done" class="button" type="button" @click="$emit('go', st.go)">{{ st.action }}</button>
+        </li>
+      </ol>
+    </section>
+
     <!-- Novedades desde tu última visita -->
     <section v-if="news.length > 0" class="feed-block" aria-labelledby="feed-news">
       <div class="section-head">
@@ -260,6 +373,37 @@ const anything = computed(
       <ol class="vgrid">
         <VideoRow v-for="v in hitsRest" :key="v.id" :video="v" :channel="channelById.get(v.channelId)" @analyze="$emit('analyze', $event)" />
       </ol>
+    </section>
+
+    <!-- Lo mejor del mes -->
+    <section v-if="monthBest.length > 0" class="feed-block" aria-labelledby="feed-month">
+      <div class="section-head">
+        <div>
+          <h2 id="feed-month">Lo mejor del mes</h2>
+          <p class="section-sub">Los videos con más score de los últimos 30 días en tus canales y tus temas</p>
+        </div>
+      </div>
+      <ol class="vgrid">
+        <VideoRow v-for="v in monthBest" :key="v.id" :video="v" :channel="allChannels.get(v.channelId)" @analyze="$emit('analyze', $event)" />
+      </ol>
+    </section>
+
+    <!-- Palabras del momento -->
+    <section v-if="words.length > 0" class="feed-block" aria-labelledby="feed-words">
+      <div class="section-head">
+        <div>
+          <h2 id="feed-words">Palabras que se repiten en tus outliers</h2>
+          <p class="section-sub">Frases de título que comparten los videos de 2× o más, con su score promedio</p>
+        </div>
+        <button class="link-button" type="button" @click="$emit('go', 'words')">Ver todas y copiar etiquetas</button>
+      </div>
+      <ul class="home-words">
+        <li v-for="w in words" :key="w.key">
+          <span class="home-word">{{ w.text }}</span>
+          <span class="home-word-score" :class="`is-${badgeTier(w.avgScore)}`">{{ formatScore(w.avgScore) }}</span>
+          <span class="home-word-n">{{ w.outliers }} outliers</span>
+        </li>
+      </ul>
     </section>
 
     <div v-if="momentumRows.length > 0 || suggestions.length > 0" class="feed-pair" :class="{ 'is-single': momentumRows.length === 0 || suggestions.length === 0 }">

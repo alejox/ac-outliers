@@ -227,12 +227,33 @@ function chipHtml(video, entry, info) {
     if (chipState.message) parts.push(`<p class="acx-message" role="alert">${escapeHtml(chipState.message)}</p>`)
     if (chipState.tagsOpen && tags.length > 0) {
       parts.push(
-        `<div class="acx-tags"><ul>${tags.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` +
+        `<div class="acx-tags"><ul>${tags.map((t) => tagItem(t, info.hits ?? {})).join('')}</ul>` +
+          (Object.keys(info.hits ?? {}).length > 0
+            ? '<p class="acx-tags-note"><span class="acx-hit-dot"></span>También la usan outliers de tus canales</p>'
+            : '') +
+          ((info.missing ?? []).length > 0
+            ? `<p class="acx-tags-note">Usan tus outliers y este video no:</p><ul class="acx-missing">${info.missing
+                .map((w) => `<li title="${escapeHtml(wordTitle(w))}">${escapeHtml(w.text)}</li>`)
+                .join('')}</ul>`
+            : '') +
           `<button type="button" class="acx-button acx-ghost" data-act="copy">${chipState.copied ? 'Copiadas' : 'Copiar etiquetas'}</button></div>`,
       )
     }
   }
   return parts.join('')
+}
+
+/** "En 4 outliers de tus canales, 9× en promedio". */
+function wordTitle(w) {
+  const n = w.outliers === 1 ? '1 outlier' : `${w.outliers} outliers`
+  return `En ${n} de tus canales, ${String(w.avgScore).replace('.', ',')}× en promedio`
+}
+
+function tagItem(tag, hits) {
+  const hit = hits[tag.toLowerCase().replace(/\s+/g, ' ').trim()]
+  return hit
+    ? `<li class="acx-hit" title="${escapeHtml(wordTitle(hit))}"><span class="acx-hit-dot"></span>${escapeHtml(tag)}</li>`
+    : `<li>${escapeHtml(tag)}</li>`
 }
 
 function paintChip() {
